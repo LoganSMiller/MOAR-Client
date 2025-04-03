@@ -1,11 +1,15 @@
-﻿// Routers.cs
-using System;
+﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using Newtonsoft.Json;
 using SPT.Common.Http;
 using MOAR.Helpers;
+using MOAR.Packets;
+using EFT;
+using Fika.Core.Networking;
+using Fika.Core.Coop.Components;
+using Comfort.Common;
 
 namespace MOAR.Helpers
 {
@@ -14,7 +18,31 @@ namespace MOAR.Helpers
     /// </summary>
     internal static class Routers
     {
-        public static void Init(ConfigFile config) { }
+        public static void Init(ConfigFile config)
+        {
+            // Ensure we have access to IFikaNetworkManager
+            if (Singleton<FikaClient>.Instantiated)
+            {
+                var manager = Singleton<FikaClient>.Instance as IFikaNetworkManager;
+                if (manager != null)
+                {
+                    manager.RegisterPacket<PresetSyncPacket>((packet) =>
+                    {
+                        HandleFikaPresetSync(packet.PresetLabel, packet.PresetName);
+                    });
+
+                    Plugin.LogSource.LogInfo("[FIKA Sync] PresetSyncPacket handler registered via IFikaNetworkManager");
+                }
+                else
+                {
+                    Plugin.LogSource.LogWarning("[FIKA Sync] FikaClient.Instance is not IFikaNetworkManager.");
+                }
+            }
+            else
+            {
+                Plugin.LogSource.LogWarning("[FIKA Sync] FikaClient not instantiated — skipping PresetSyncPacket registration.");
+            }
+        }
 
         // --- Preset Accessors ---
 
@@ -85,7 +113,7 @@ namespace MOAR.Helpers
             {
                 var json = RequestHandler.GetJson("/moar/getPresets");
                 var response = JsonConvert.DeserializeObject<GetPresetsListResponse>(json);
-                return response?.data?.ToList() ?? new List<Preset>();
+                return response?.Data?.ToList() ?? new List<Preset>();
             }
             catch (Exception ex)
             {
@@ -129,7 +157,7 @@ namespace MOAR.Helpers
             try
             {
                 var json = JsonConvert.SerializeObject(settings);
-                RequestHandler.PostJson("/moar/setConfig", json);
+                RequestHandler.PostJson("/moar/setOverrideConfig", json);
             }
             catch (Exception ex)
             {
@@ -156,6 +184,27 @@ namespace MOAR.Helpers
             {
                 Plugin.LogSource.LogError($"[PostPlayerLocationTo] Failed to post to {endpoint}: {ex.Message}");
                 return "Error submitting player position.";
+            }
+        }
+
+        // --- FIKA Sync Debug ---
+
+        public static void HandleFikaPresetSync(string presetLabel, string presetName)
+        {
+            Plugin.LogSource.LogInfo($"[FIKA Sync] Received preset from FIKA: {presetLabel} ({presetName})");
+
+            var match = Settings.PresetList?.Find(p =>
+                string.Equals(p.Name, presetName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, presetLabel, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+            {
+                Settings.currentPreset.Value = match.Name;
+                Plugin.LogSource.LogInfo($"[FIKA Sync] Applied synced preset: {match.Label} ({match.Name})");
+            }
+            else
+            {
+                Plugin.LogSource.LogWarning($"[FIKA Sync] No matching preset found for: {presetLabel} / {presetName}");
             }
         }
     }

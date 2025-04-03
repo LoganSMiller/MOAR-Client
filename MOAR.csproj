@@ -7,7 +7,7 @@
     <ProjectGuid>{82404D54-346E-4128-AE5D-1B98D1327932}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>MOAR</RootNamespace>
-    <AssemblyName>MOAR</AssemblyName>
+    <AssemblyName>MOAR-Refactored</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <LangVersion>10.0</LangVersion>
@@ -50,20 +50,40 @@
     <Reference Include="Comfort">
       <HintPath>..\..\RLO\RealisticLighting\References\Comfort.dll</HintPath>
     </Reference>
-    <Reference Include="Fika.Core">
+    <Reference Include="ConfigurationManager">
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\ConfigurationManager.dll</HintPath>
+    </Reference>
+    <Reference Include="Fika.Core, Version=1.2.3.0, Culture=neutral, PublicKeyToken=1f37bed7e0de1980, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\Fika.Core.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\RLO\RealisticLighting\References\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="spt-common">
-      <HintPath>..\..\RLO\RealisticLighting\References\spt-common.dll</HintPath>
+    <Reference Include="spt-common, Version=3.11.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\spt-common.dll</HintPath>
     </Reference>
-    <Reference Include="spt-custom">
-      <HintPath>..\..\RLO\RealisticLighting\References\spt-custom.dll</HintPath>
+    <Reference Include="spt-core, Version=3.11.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\spt-core.dll</HintPath>
     </Reference>
-    <Reference Include="spt-reflection">
-      <HintPath>..\..\RLO\RealisticLighting\References\spt-reflection.dll</HintPath>
+    <Reference Include="spt-custom, Version=3.11.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\spt-custom.dll</HintPath>
+    </Reference>
+    <Reference Include="spt-debugging">
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\spt-debugging.dll</HintPath>
+    </Reference>
+    <Reference Include="spt-prepatch">
+      <HintPath>..\..\..\..\..\SPT\BepInEx\patchers\spt-prepatch.dll</HintPath>
+    </Reference>
+    <Reference Include="spt-reflection, Version=3.11.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\spt-reflection.dll</HintPath>
+    </Reference>
+    <Reference Include="spt-singleplayer">
+      <HintPath>..\..\..\..\..\SPT\BepInEx\plugins\spt\spt-singleplayer.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -96,15 +116,17 @@
     <Compile Include="Components\BotZoneRenderer.cs" />
     <Compile Include="Components\Notifications\DebugNotification.cs" />
     <Compile Include="ConfigSettings.cs" />
-    <Compile Include="ConfigurationManagerAttributes.cs" />
-    <Compile Include="GetPresetsListResponse.cs" />
+    <Compile Include="Helpers\ConfigurationManagerAttributes.cs" />
+    <Compile Include="Helpers\GetPresetsListResponse.cs" />
     <Compile Include="Helpers\Methods.cs" />
     <Compile Include="Helpers\Routers.cs" />
     <Compile Include="Helpers\Settings.cs" />
     <Compile Include="Helpers\UIUtils.cs" />
-    <Compile Include="Ixyz.cs" />
+    <Compile Include="Data\Ixyz.cs" />
     <Compile Include="Helpers\Preset.cs" />
-    <Compile Include="Networking\PresetSyncPacket.cs" />
+    <Compile Include="Networking\MOARCoopPacketRouter.cs" />
+    <Compile Include="Networking\MOARPresetSyncHandler.cs" />
+    <Compile Include="Packets\PresetSyncPacket.cs" />
     <Compile Include="Patches\AddEnemyPatch.cs" />
     <Compile Include="Patches\BotZoneDumper.cs" />
     <Compile Include="Patches\NotificationPatch.cs" />
@@ -113,7 +135,7 @@
     <Compile Include="Patches\SniperPatch.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SetPresetRequest.cs" />
+    <Compile Include="Packets\SetPresetRequest.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

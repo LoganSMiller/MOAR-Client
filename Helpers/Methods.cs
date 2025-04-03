@@ -5,6 +5,7 @@ using Comfort.Common;
 using EFT;
 using EFT.Communications;
 using MOAR.Components.Notifications;
+using MOAR.Data;
 using SPT.Reflection.Utils;
 using UnityEngine;
 
@@ -56,18 +57,18 @@ namespace MOAR.Helpers
             if (player == null)
             {
                 Plugin.LogSource.LogWarning("[GetPlayersCoordinatesAndLevel] MainPlayer is null");
-                return new AddSpawnRequest { map = "Unknown", position = new Ixyz() };
+                return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
             }
 
             Vector3 pos = player.Position;
             return new AddSpawnRequest
             {
-                map = player.Location ?? "Unknown",
-                position = new Ixyz
+                Map = player.Location ?? "Unknown",
+                Position = new Ixyz
                 {
-                    x = pos.x,
-                    y = pos.y,
-                    z = pos.z
+                    X = pos.x,
+                    Y = pos.y,
+                    Z = pos.z
                 }
             };
         }
