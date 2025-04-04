@@ -66,6 +66,9 @@ namespace MOAR
             {
                 EnablePatches();
 
+                
+                MOARCoopPacketRouter.TryRegister();
+
                 if (Settings.IsFika && FikaBackendUtils.IsServer)
                 {
                     BroadcastPresetToClients(
@@ -91,8 +94,6 @@ namespace MOAR
         {
             if (!Settings.IsFika || !FikaBackendUtils.IsServer)
                 return;
-
-            MOARCoopPacketRouter.TryRegister();
 
             if (TryPress(Settings.DeleteBotSpawn.Value))
                 AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");

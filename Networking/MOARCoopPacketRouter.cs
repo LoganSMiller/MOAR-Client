@@ -1,52 +1,57 @@
-using System;
-using Comfort.Common; 
+using System.Collections;
+using UnityEngine;
+using Fika.Core;
 using Fika.Core.Networking;
-using Fika.Core.Coop.Utils;
 using MOAR.Helpers;
 using MOAR.Packets;
 
 namespace MOAR.Networking
 {
+    /// <summary>
+    /// Handles safe registration of MOAR packet handlers with FIKA networking.
+    /// Supports headless and traditional multiplayer sessions.
+    /// </summary>
     internal static class MOARCoopPacketRouter
     {
         private static bool _registered = false;
-        private static bool _warnedOnce = false;
 
+        /// <summary>
+        /// Initiates the coroutine-based registration of packet handlers.
+        /// Safe to call repeatedly.
+        /// </summary>
         public static void TryRegister()
         {
             if (_registered || !Settings.IsFika)
                 return;
 
-            if (!FikaBackendUtils.IsServer)
+            Plugin.Instance.StartCoroutine(WaitAndRegister());
+        }
+
+        private static IEnumerator WaitAndRegister()
+        {
+            Plugin.LogSource.LogDebug("[MOARCoopPacketRouter] Waiting for IFikaNetworkManager...");
+
+            // Wait until FikaPlugin.Instance is valid and implements IFikaNetworkManager
+            while (!(FikaPlugin.Instance is IFikaNetworkManager))
             {
-                if (!_warnedOnce)
-                {
-                    Plugin.LogSource.LogDebug("[MOARCoopPacketRouter] Skipped packet registration — not server or headless host.");
-                    _warnedOnce = true;
-                }
-                return;
+                yield return null;
             }
 
-            
-            if (Singleton<IFikaNetworkManager>.Instantiated)
-            {
-                var networkManager = Singleton<IFikaNetworkManager>.Instance;
+            var networkManager = (IFikaNetworkManager)FikaPlugin.Instance;
 
-                try
-                {
-                    networkManager.RegisterPacket<PresetSyncPacket>(MOARPresetSyncHandler.OnClientReceivedPresetPacket);
-                    Plugin.LogSource.LogInfo("[MOARCoopPacketRouter] Registered PresetSyncPacket via IFikaNetworkManager.");
-                    _registered = true;
-                }
-                catch (Exception ex)
-                {
-                    Plugin.LogSource.LogError($"[MOARCoopPacketRouter] Packet registration failed: {ex.Message}");
-                }
-            }
-            else if (!_warnedOnce)
+            try
             {
-                Plugin.LogSource.LogWarning("[MOARCoopPacketRouter] IFikaNetworkManager is not yet instantiated.");
-                _warnedOnce = true;
+                networkManager.RegisterPacket<PresetSyncPacket>(packet =>
+                {
+                    MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet);
+                });
+
+                Plugin.LogSource.LogInfo("[MOARCoopPacketRouter] Registered PresetSyncPacket with FIKA.");
+                _registered = true;
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.LogSource.LogError($"[MOARCoopPacketRouter] Packet registration failed: {ex.Message}");
             }
         }
     }
