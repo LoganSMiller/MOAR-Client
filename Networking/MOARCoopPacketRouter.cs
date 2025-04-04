@@ -7,21 +7,28 @@ using Fika.Core;
 namespace MOAR.Networking
 {
     /// <summary>
-    /// Registers MOAR-specific FIKA packets with the FIKA network manager.
-    /// This class ensures packets are only registered when FikaPlugin is ready.
+    /// Registers MOAR packets with FIKA when ready. Safe to call repeatedly.
     /// </summary>
     internal static class MOARCoopPacketRouter
     {
-        public static void Register()
+        private static bool _registered = false;
+        private static bool _warnedOnce = false;
+
+        public static void TryRegister()
         {
+            if (_registered)
+                return;
+
             if (FikaPlugin.Instance is IFikaNetworkManager networkManager)
             {
                 networkManager.RegisterPacket<PresetSyncPacket>(MOARPresetSyncHandler.OnClientReceivedPresetPacket);
                 Plugin.LogSource.LogInfo("[FIKA Sync] Registered PresetSyncPacket via FikaPlugin.");
+                _registered = true;
             }
-            else
+            else if (!_warnedOnce)
             {
-                Plugin.LogSource.LogError("[FIKA Sync] FikaPlugin.Instance not available — failed to register PresetSyncPacket.");
+                Plugin.LogSource.LogWarning("[FIKA Sync] FikaPlugin.Instance not ready — will retry...");
+                _warnedOnce = true;
             }
         }
     }

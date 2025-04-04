@@ -55,7 +55,7 @@ namespace MOAR
                 if (Settings.IsFika && !FikaBackendUtils.IsServer)
                 {
                     DebugNotification.RegisterNetworkHandler();
-                    MOARCoopPacketRouter.Register();
+                    MOARCoopPacketRouter.TryRegister();
                 }
 
                 Logger.LogInfo("[MOAR] Awake complete.");
@@ -110,26 +110,25 @@ namespace MOAR
 
         private void Update()
         {
-            if (!_initialized) return;
-
-            var player = Singleton<GameWorld>.Instance?.MainPlayer;
-            if (player == null) return;
+            if (Settings.IsFika)
+                MOARCoopPacketRouter.TryRegister(); // ✅ Retry packet registration until it succeeds
 
             if (TryPress(Settings.DeleteBotSpawn.Value))
-                AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point", player.Location);
+                AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
 
             if (TryPress(Settings.AddBotSpawn.Value))
-                AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point", player.Location);
+                AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point");
 
             if (TryPress(Settings.AddSniperSpawn.Value))
-                AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point", player.Location);
+                AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point");
 
             if (TryPress(Settings.AddPlayerSpawn.Value))
-                AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point", player.Location);
+                AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point");
 
             if (Settings.AnnounceKey.Value.BetterIsDown())
-                AnnouncePresetManually(player.Location);
+                AnnouncePresetManually();
         }
+
 
         private static bool TryPress(KeyboardShortcut shortcut) =>
             shortcut.BetterIsDown();
