@@ -8,15 +8,15 @@ using EFT;
 using EFT.Communications;
 using HarmonyLib;
 using LiteNetLib;
+using LiteNetLib.Utils;
 using MOAR.Helpers;
-using MOAR.Packets;
 using MOAR.Patches;
-using MOAR.Networking;
 using MOAR.Components.Notifications;
+using MOAR.Networking;
+using Fika.Core.Networking;
+using Fika.Core.Coop.Utils;
 using Fika.Core.Coop;
 using Fika.Core.Coop.GameMode;
-using Fika.Core.Coop.Utils;
-using Fika.Core.Networking;
 
 namespace MOAR
 {
@@ -25,10 +25,8 @@ namespace MOAR
     public class Plugin : BaseUnityPlugin
     {
         public static ManualLogSource LogSource;
-        public static Plugin Instance { get; private set; }
-
-        private static bool _initialized;
         private static readonly Random _rng = new();
+
         private static string _hostPresetLabel = "Unknown";
 
         private void Awake()
@@ -52,27 +50,26 @@ namespace MOAR
 
                 new Harmony("com.moar.patches").PatchAll();
 
-                if (Settings.IsFika && !FikaBackendUtils.IsServer)
-                {
-                    DebugNotification.RegisterNetworkHandler();
-                    MOARCoopPacketRouter.TryRegister();
-                }
-
-                Logger.LogInfo("[MOAR] Awake complete.");
-            }
-            catch (Exception ex)
+            if (Settings.IsFika && Singleton<FikaServer>.Instantiated && Singleton<FikaClient>.Instantiated)
             {
-                Logger.LogError($"[MOAR] Plugin Awake failed: {ex}");
+                DebugNotification.RegisterNetworkHandler();
+
+                // Correct packet registration using IFikaNetworkManager interface
+                var networkManager = Singleton<IFikaNetworkManager>.Instance;
+                if (networkManager != null)
+                {
+                    networkManager.RegisterPacket<PresetSyncPacket>(packet => OnClientReceivedPresetPacket(packet));
+                }
+                else
+                {
+                    LogSource.LogError("FIKA NetworkManager not available for packet registration.");
+                }
+            }
+            else if (Settings.IsFika)
+            {
+                LogSource.LogError("FIKA detected but networking components unavailable.");
             }
         }
-
-        private void Start()
-        {
-            if (!_initialized)
-            {
-                Logger.LogError("[MOAR] Start called without proper Awake initialization.");
-                return;
-            }
 
             try
             {
@@ -91,24 +88,17 @@ namespace MOAR
             }
         }
 
-        private void EnablePatches()
+        private void Update()
         {
-            try
-            {
-                new SniperPatch().Enable();
-                new AddEnemyPatch().Enable();
-                new NotificationPatch().Enable();
+            new SniperPatch().Enable();
+            new AddEnemyPatch().Enable();
+            new NotificationPatch().Enable();
 
-                if (Settings.enablePointOverlay.Value)
-                    new OnGameStartedPatch().Enable();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"[MOAR] EnablePatches failed: {ex}");
-            }
+            if (Settings.enablePointOverlay.Value)
+                new OnGameStartedPatch().Enable();
         }
 
-        private void Update()
+        private static void HandleInput()
         {
             if (Settings.IsFika)
                 MOARCoopPacketRouter.TryRegister(); // ✅ Retry packet registration until it succeeds
@@ -126,26 +116,18 @@ namespace MOAR
                 AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point");
 
             if (Settings.AnnounceKey.Value.BetterIsDown())
-                AnnouncePresetManually();
-        }
-
-
-        private static bool TryPress(KeyboardShortcut shortcut) =>
-            shortcut.BetterIsDown();
-
-        private static void AnnounceResult(string result, string fallbackMessage, string location = "Unknown")
-        {
-            var message = string.IsNullOrWhiteSpace(result) ? fallbackMessage : result;
-
-            var notification = new DebugNotification
             {
-                Notification = $"{message} in {location}",
-                NotificationIcon = ENotificationIconType.Default
-            };
-            notification.Display();
+                var presetName = Settings.IsFika ? _hostPresetLabel : Routers.GetAnnouncePresetName();
+                var notification = new DebugNotification
+                {
+                    Notification = $"Current preset is {presetName}",
+                    NotificationIcon = ENotificationIconType.EntryPoint
+                };
+                notification.Display();
 
-            if (Settings.IsFika && FikaBackendUtils.IsServer)
-                notification.BroadcastToClients();
+                if (Settings.IsFika && FikaBackendUtils.IsServer)
+                    notification.BroadcastToClients();
+            }
         }
 
         private static void AnnouncePresetManually(string location = "Unknown")
@@ -156,24 +138,31 @@ namespace MOAR
                 Notification = $"Current preset is {presetName}",
                 NotificationIcon = ENotificationIconType.EntryPoint
             };
-            notification.Display();
 
+            notification.Display();
             if (Settings.IsFika && FikaBackendUtils.IsServer)
                 notification.BroadcastToClients();
         }
 
         private static void BroadcastPresetToClients(string presetName, string presetLabel)
         {
-            if (Singleton<FikaServer>.Instantiated && Singleton<FikaServer>.Instance != null)
+            var packet = new PresetSyncPacket(presetName, presetLabel);
+            Singleton<FikaServer>.Instance.SendDataToAll(ref packet, DeliveryMethod.ReliableOrdered, null);
+        }
+
+        private static void OnClientReceivedPresetPacket(PresetSyncPacket packet)
+        {
+            _hostPresetLabel = packet.PresetLabel;
+            Settings.currentPreset.Value = packet.PresetName;
+
+            var notification = new DebugNotification
             {
-                var packet = new PresetSyncPacket(presetName, presetLabel);
-                Singleton<FikaServer>.Instance.SendDataToAll(ref packet, DeliveryMethod.ReliableOrdered, null);
-                LogSource.LogInfo($"[MOAR] Broadcasted PresetSyncPacket: {presetName} / {presetLabel}");
-            }
-            else
-            {
-                LogSource.LogError("[MOAR] Failed to broadcast preset: FikaServer not instantiated.");
-            }
+                Notification = $"Preset synced from host: {_hostPresetLabel}",
+                NotificationIcon = ENotificationIconType.EntryPoint
+            };
+            notification.Display();
+
+            LogSource.LogInfo($"Preset synced from host: {_hostPresetLabel}");
         }
 
         public static string GetFlairMessage()
@@ -182,7 +171,7 @@ namespace MOAR
             {
                 ", good luck!", ", may the bots ever be in your favour.", ", you're probably screwed.",
                 ", enjoy the dumpster fire.", ", hope you brought snacks.", ", prepare to be crushed.",
-                ", try not to rage-quit.", ", it's going to be a long day for you.", ", let the feelings of dread pass over you."
+                ", try not to rage-quit.", ", it's going to be a long day for you.", ", let the feelings of dread pass over you.",
             };
 
             return suffixes[_rng.Next(suffixes.Count)];

@@ -2,6 +2,7 @@
 using EFT.Communications;
 using Newtonsoft.Json;
 using MOAR.Helpers;
+
 #if FIKA
 using Fika.Networking;
 using Fika.Networking.Models;
@@ -11,7 +12,7 @@ namespace MOAR.Components.Notifications
 {
     /// <summary>
     /// Custom debug notification used to display in-game messages during development.
-    /// Now multiplayer-safe and can be synchronized across FIKA sessions.
+    /// Multiplayer-safe and synchronized across FIKA sessions.
     /// </summary>
     public class DebugNotification : NotificationAbstractClass
     {
@@ -26,27 +27,43 @@ namespace MOAR.Components.Notifications
         public override string Description => Notification;
 
         /// <summary>
-        /// Displays this notification on the local client.
+        /// Displays this notification locally on the client.
         /// </summary>
         public void Display()
         {
-            NotificationManagerClass.DisplayNotification(this);
+            try
+            {
+                NotificationManagerClass.DisplayNotification(this);
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[DebugNotification.Display] Error: {ex.Message}");
+            }
         }
 
         /// <summary>
-        /// Sends this notification to all clients in a FIKA multiplayer session.
+        /// Broadcasts the notification to all FIKA clients.
         /// </summary>
         public void BroadcastToClients()
         {
 #if FIKA
-            if (!Settings.IsFika) return;
-            var payload = JsonConvert.SerializeObject(this);
-            FikaNetwork.SendToAll("MOAR:Notification", payload);
+            try
+            {
+                if (!Settings.IsFika)
+                    return;
+
+                var payload = ToJson();
+                FikaNetwork.SendToAll("MOAR:Notification", payload);
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[DebugNotification.BroadcastToClients] Error: {ex.Message}");
+            }
 #endif
         }
 
         /// <summary>
-        /// Serializes the notification to a JSON string.
+        /// Converts this notification to a JSON string.
         /// </summary>
         public string ToJson()
         {
@@ -54,7 +71,7 @@ namespace MOAR.Components.Notifications
         }
 
         /// <summary>
-        /// Deserializes a notification from a JSON string.
+        /// Creates a notification from a JSON string.
         /// </summary>
         public static DebugNotification FromJson(string json)
         {
@@ -62,22 +79,24 @@ namespace MOAR.Components.Notifications
         }
 
         /// <summary>
-        /// Registers the packet handler for receiving remote notifications.
+        /// Registers the packet handler for remote notification reception (FIKA only).
         /// </summary>
         public static void RegisterNetworkHandler()
         {
 #if FIKA
-            if (!Settings.IsFika) return;
-            FikaNetwork.On("MOAR:Notification", (data) =>
+            if (!Settings.IsFika)
+                return;
+
+            FikaNetwork.On("MOAR:Notification", (json) =>
             {
                 try
                 {
-                    var notification = FromJson(data);
-                    notification.Display();
+                    var notification = FromJson(json);
+                    notification?.Display();
                 }
                 catch (Exception ex)
                 {
-                    Plugin.LogSource.LogError($"[DebugNotification] Failed to handle remote packet: {ex.Message}");
+                    Plugin.LogSource.LogError($"[DebugNotification.RegisterNetworkHandler] Error: {ex.Message}");
                 }
             });
 #endif

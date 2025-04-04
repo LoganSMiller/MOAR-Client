@@ -18,69 +18,105 @@ namespace MOAR.Helpers
     {
         /// <summary>
         /// Displays an in-game notification and safely broadcasts it in multiplayer if FIKA is present.
+        /// This method is FIKA-safe and does nothing multiplayer-wise if FIKA is not loaded.
         /// </summary>
+        /// <param name="message">Message text to show</param>
+        /// <param name="icon">Optional icon type (default = Quest)</param>
         public static void DisplayMessage(string message, ENotificationIconType icon = ENotificationIconType.Quest)
         {
-            var notification = new DebugNotification
+            if (string.IsNullOrWhiteSpace(message))
             {
-                Notification = message,
-                NotificationIcon = icon
-            };
+                Plugin.LogSource.LogWarning("[DisplayMessage] Tried to show null or empty message.");
+                return;
+            }
 
-            notification.Display();
-            notification.BroadcastToClients();
+            try
+            {
+                var notification = new DebugNotification
+                {
+                    Notification = message,
+                    NotificationIcon = icon
+                };
+
+                notification.Display();
+
+                // Only broadcast if FIKA is active
+                if (Settings.IsFika)
+                    notification.BroadcastToClients();
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[DisplayMessage] Error: {ex.Message}");
+            }
         }
 
         /// <summary>
         /// Triggers a location info refresh by querying the backend session.
+        /// Used to refresh available zone and raid metadata.
         /// </summary>
         public static async Task RefreshLocationInfo()
         {
             try
             {
                 if (PatchConstants.BackEndSession != null)
+                {
                     await PatchConstants.BackEndSession.GetLevelSettings();
+                }
+                else
+                {
+                    Plugin.LogSource.LogWarning("[RefreshLocationInfo] BackEndSession is null");
+                }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[RefreshLocationInfo] {ex.Message}");
+                Plugin.LogSource.LogError($"[RefreshLocationInfo] Error refreshing: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Returns current player position and location for use in spawn requests.
+        /// Returns current player world position and location string for spawn tracking and server sync.
         /// </summary>
+        /// <returns>AddSpawnRequest with position and map</returns>
         public static AddSpawnRequest GetPlayersCoordinatesAndLevel()
         {
-            var player = Singleton<GameWorld>.Instance?.MainPlayer;
+            try
+            {
+                var player = Singleton<GameWorld>.Instance?.MainPlayer;
 
             if (player == null)
             {
                 Plugin.LogSource.LogWarning("[GetPlayersCoordinatesAndLevel] MainPlayer is null");
-                return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
+                return new AddSpawnRequest { map = "Unknown", position = new Ixyz() };
             }
 
             Vector3 pos = player.Position;
             return new AddSpawnRequest
             {
-                Map = player.Location ?? "Unknown",
-                Position = new Ixyz
+                map = player.Location ?? "Unknown",
+                position = new Ixyz
                 {
-                    X = pos.x,
-                    Y = pos.y,
-                    Z = pos.z
+                    x = pos.x,
+                    y = pos.y,
+                    z = pos.z
                 }
             };
         }
 
         /// <summary>
-        /// Checks if the announce key is pressed and displays the current preset name.
+        /// Polls for the announce key each frame and triggers manual preset display if pressed.
         /// </summary>
         public static void CheckAnnounceKey()
         {
-            if (Settings.AnnounceKey?.Value.BetterIsDown() == true)
+            try
             {
-                Settings.AnnounceManually();
+                if (Settings.AnnounceKey?.Value.BetterIsDown() == true)
+                {
+                    Settings.AnnounceManually();
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[CheckAnnounceKey] Failed to announce: {ex.Message}");
             }
         }
     }

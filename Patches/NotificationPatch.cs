@@ -9,8 +9,7 @@ using SPT.Reflection.Patching;
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Displays the current MOAR preset with a randomized flair message when a raid starts.
-    /// Prevents duplicate messaging in FIKA-based Coop scenarios.
+    /// Displays the current preset with a random flair message on raid start.
     /// </summary>
     public sealed class NotificationPatch : ModulePatch
     {
@@ -24,15 +23,15 @@ namespace MOAR.Patches
         /// Shows a preset notification if enabled in settings.
         /// </summary>
         [PatchPrefix]
-        private static bool Prefix()
+        private static void Prefix()
         {
             // Skip notification if toggled off
             if (!Settings.ShowPresetOnRaidStart.Value)
-                return true;
+                return;
 
-            // Avoid double notification in Coop — host will announce
+            // Don't double-announce in FIKA since host will handle the message
             if (Settings.IsFika)
-                return true;
+                return;
 
             // Get current preset label
             var selected = Settings.PresetList
@@ -43,8 +42,6 @@ namespace MOAR.Patches
 
             // Display notification
             Methods.DisplayMessage($"Current preset is {label}{flair}", ENotificationIconType.EntryPoint);
-
-            return true;
         }
     }
 }

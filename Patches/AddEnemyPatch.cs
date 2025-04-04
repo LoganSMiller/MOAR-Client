@@ -8,8 +8,7 @@ using SPT.Reflection.Patching;
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Prevents friendly PMCs from targeting each other unless <c>factionAggression</c> is enabled in the settings.
-    /// Also allows solo bots to still retaliate when alone.
+    /// Prevents friendly PMCs from targeting each other unless factionAggression is enabled.
     /// </summary>
     public class AddEnemyPatch : ModulePatch
     {
@@ -24,7 +23,7 @@ namespace MOAR.Patches
         /// <param name="cause">The reason for being marked as an enemy.</param>
         /// <returns><c>true</c> to allow adding as enemy; <c>false</c> to skip.</returns>
         [PatchPrefix]
-        protected static bool PatchPrefix(BotsGroup __instance, IPlayer person, EBotEnemyCause cause)
+        private static bool PatchPrefix(BotsGroup __instance, IPlayer person, EBotEnemyCause cause)
         {
             if (__instance == null || person == null || !person.IsAI)
             {
@@ -37,18 +36,15 @@ namespace MOAR.Patches
             bool isOpposingFaction = __instance.Side != person.Side;
             bool isScav = person.Side == EPlayerSide.Savage || __instance.Side == EPlayerSide.Savage;
 
-            if (isOpposingFaction || isScav)
+            // Always allow if target is Savage or opposite faction
+            if (__instance.Side != person.Side || person.Side == EPlayerSide.Savage || __instance.Side == EPlayerSide.Savage)
                 return true;
 
-            List<BotOwner> groupMembers = __instance.GetAllMembers() ?? new List<BotOwner>();
+            List<BotOwner> groupMembers = __instance.GetAllMembers();
             bool isSolo = groupMembers.Count <= 1;
 
+            // Only allow aggression if enabled or if bot is solo
             bool allowAggression = Settings.factionAggression.Value || isSolo;
-
-            if (!allowAggression && Settings.debug.Value)
-            {
-                Plugin.LogSource.LogDebug($"[AddEnemyPatch] Suppressed same-faction aggression: {person.Profile?.Id}");
-            }
 
             return allowAggression;
         }

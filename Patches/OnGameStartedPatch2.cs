@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using EFT;
+using EFT.Game.Spawning;
 using HarmonyLib;
 using MOAR.Components;
 using SPT.Reflection.Patching;
@@ -26,19 +26,9 @@ namespace MOAR.Patches
         [HarmonyPriority(Priority.Last)]
         private static void Postfix(BotZone __instance)
         {
-            try
+            if (__instance != null && __instance.GetComponent<BotZoneRenderer>() == null)
             {
-                if (__instance?.gameObject?.GetComponent<BotZoneRenderer>() == null)
-                {
-                    __instance.gameObject.AddComponent<BotZoneRenderer>();
-#if DEBUG
-                    Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] Renderer added to BotZone: {__instance.NameZone}");
-#endif
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Plugin.LogSource?.LogWarning($"[BotZoneAwakePatch] Failed to add renderer: {ex.Message}");
+                __instance.gameObject.AddComponent<BotZoneRenderer>();
             }
         }
     }

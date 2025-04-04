@@ -27,21 +27,20 @@ namespace MOAR.Patches
                 ?? zones[UnityEngine.Random.Range(0, zones.Count)];
         }
 
-        /// <summary>
-        /// Returns true if the zone name suggests a sniper zone.
-        /// </summary>
-        private static bool IsSnipeZoneName(string name) =>
-            !string.IsNullOrEmpty(name) && name.ToLowerInvariant().Contains("custom_snipe");
+        private static bool IsSnipeZoneName(string name)
+        {
+            return !string.IsNullOrEmpty(name) && name.ToLowerInvariant().Contains("custom_snipe");
+        }
 
         /// <summary>
         /// Finds the bot zone name for a given spawn point ID.
         /// </summary>
         private static string GetBotZoneNameById(SpawnPointParams[] spawnPoints, string id)
         {
-            foreach (var point in spawnPoints)
+            for (int i = 0; i < spawnPoints.Length; i++)
             {
-                if (point.Id == id)
-                    return point.BotZoneName;
+                if (spawnPoints[i].Id == id)
+                    return spawnPoints[i].BotZoneName;
             }
             return string.Empty;
         }
@@ -53,7 +52,9 @@ namespace MOAR.Patches
             {
                 if (spawnPoints[i].Id == id)
                 {
-                    spawnPoints[i].BotZoneName = newName;
+                    var updated = spawnPoints[i];
+                    updated.BotZoneName = newName;
+                    spawnPoints[i] = updated; // structs must be reassigned
                     return;
                 }
             }
@@ -77,13 +78,13 @@ namespace MOAR.Patches
 
             foreach (var marker in __result)
             {
-                if (marker?.BotZone != null && !marker.BotZone.IsNullOrDestroyed())
-                {
-                    if (marker.BotZone.SnipeZone)
-                        snipeZones.Add(marker.BotZone);
-                    else
-                        regularZones.Add(marker.BotZone);
-                }
+                if (marker?.BotZone == null || marker.BotZone.IsNullOrDestroyed())
+                    continue;
+
+                if (marker.BotZone.SnipeZone)
+                    snipeZones.Add(marker.BotZone);
+                else
+                    regularZones.Add(marker.BotZone);
             }
 
             if (snipeZones.Count == 0 || regularZones.Count == 0)
@@ -107,9 +108,9 @@ namespace MOAR.Patches
                 // Regular spawn
                 if (!snipeZones.Any(z => z.NameZone == zoneName) && !IsSnipeZoneName(zoneName))
                 {
-                    var fallbackZone = GetNearestZone(regularZones, zoneName);
-                    AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallbackZone, -1);
-                    marker.BotZone = fallbackZone;
+                    var fallback = GetNearestZone(regularZones, zoneName);
+                    AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallback, -1);
+                    marker.BotZone = fallback;
                 }
                 // Sniper spawn
                 else
@@ -117,10 +118,10 @@ namespace MOAR.Patches
                     if (IsSnipeZoneName(zoneName))
                         SetBotZoneName(parameters, marker.Id, string.Empty);
 
-                    var snipeZone = GetNearestZone(snipeZones, zoneName);
-                    int newMax = snipeZone.MaxPersons > 0 ? snipeZone.MaxPersons + 1 : 5;
-                    AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(snipeZone, newMax);
-                    marker.BotZone = snipeZone;
+                    var sniperZone = GetNearestZone(snipeZones, zoneName);
+                    int newMax = sniperZone.MaxPersons > 0 ? sniperZone.MaxPersons + 1 : 5;
+                    AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(sniperZone, newMax);
+                    marker.BotZone = sniperZone;
                 }
             }
 

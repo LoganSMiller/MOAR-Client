@@ -2,13 +2,14 @@
 using EFT;
 using HarmonyLib;
 using MOAR.Components;
+using MOAR.Helpers; // ✅ Reference to static Settings class
 using SPT.Reflection.Patching;
 using UnityEngine;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Injects a BotZoneRenderer into the GameWorld on game start for runtime zone visualization and debug purposes.
+    /// Ensures that BotZoneRenderer is added to the GameWorld on raid start.
     /// </summary>
     public sealed class OnGameStartedPatch : ModulePatch
     {
@@ -25,20 +26,14 @@ namespace MOAR.Patches
         [PatchPrefix]
         private static void Prefix(GameWorld __instance)
         {
-            if (__instance == null || __instance.gameObject == null)
-            {
-                Plugin.LogSource?.LogWarning("[OnGameStartedPatch] GameWorld instance was null.");
+            if (__instance == null)
                 return;
             }
 
             if (!__instance.TryGetComponent<BotZoneRenderer>(out _))
             {
                 __instance.gameObject.AddComponent<BotZoneRenderer>();
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] BotZoneRenderer successfully added to GameWorld.");
-            }
-            else
-            {
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] GameWorld already contains BotZoneRenderer. Skipping.");
+                Plugin.LogSource.LogDebug("[OnGameStartedPatch] BotZoneRenderer added to GameWorld.");
             }
         }
     }

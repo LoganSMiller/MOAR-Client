@@ -14,39 +14,15 @@ using Comfort.Common;
 namespace MOAR.Helpers
 {
     /// <summary>
-    /// Handles all server API routing logic and HTTP requests for config and presets.
+    /// Handles all client-side server API routing logic for config, presets, and spawn tools.
     /// </summary>
     internal static class Routers
     {
-        private static string _hostPresetLabel = "Unknown"; // <-- Added for label caching
+        public static void Init(ConfigFile config) { }
 
-        public static void Init(ConfigFile config)
-        {
-            // Ensure we have access to IFikaNetworkManager
-            if (Singleton<FikaClient>.Instantiated)
-            {
-                var manager = Singleton<FikaClient>.Instance as IFikaNetworkManager;
-                if (manager != null)
-                {
-                    manager.RegisterPacket<PresetSyncPacket>((packet) =>
-                    {
-                        HandleFikaPresetSync(packet.PresetLabel, packet.PresetName);
-                    });
-
-                    Plugin.LogSource.LogInfo("[FIKA Sync] PresetSyncPacket handler registered via IFikaNetworkManager");
-                }
-                else
-                {
-                    Plugin.LogSource.LogWarning("[FIKA Sync] FikaClient.Instance is not IFikaNetworkManager.");
-                }
-            }
-            else
-            {
-                Plugin.LogSource.LogWarning("[FIKA Sync] FikaClient not instantiated — skipping PresetSyncPacket registration.");
-            }
-        }
-
-        // --- Preset Accessors ---
+        // ─────────────────────────────────────────────────────────────
+        // ─── PRESET ACCESSORS ────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
 
         public static string GetCurrentPresetLabel()
         {
@@ -56,7 +32,7 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogWarning($"[GetCurrentPresetLabel] Falling back to client config: {ex.Message}");
+                Plugin.LogSource.LogWarning($"[GetCurrentPresetLabel] Fallback to client config: {ex.Message}");
                 return Settings.currentPreset?.Value ?? Settings.ServerStoredDefaults?.Name ?? "live-like";
             }
         }
@@ -69,7 +45,7 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogWarning($"[GetAnnouncePresetLabel] Falling back to client config: {ex.Message}");
+                Plugin.LogSource.LogWarning($"[GetAnnouncePresetLabel] Fallback to client config: {ex.Message}");
                 return Settings.currentPreset?.Value ?? Settings.ServerStoredDefaults?.Name ?? "live-like";
             }
         }
@@ -103,7 +79,8 @@ namespace MOAR.Helpers
             try
             {
                 var request = new SetPresetRequest { Preset = label };
-                return RequestHandler.PostJson("/moar/setPreset", JsonConvert.SerializeObject(request));
+                var json = JsonConvert.SerializeObject(request);
+                return RequestHandler.PostJson("/moar/setPreset", json);
             }
             catch (Exception ex)
             {
@@ -127,7 +104,9 @@ namespace MOAR.Helpers
             }
         }
 
-        // --- Server Config Management ---
+        // ─────────────────────────────────────────────────────────────
+        // ─── CONFIG MANAGEMENT ───────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
 
         public static ConfigSettings GetServerConfigWithOverrides()
         {
@@ -170,7 +149,9 @@ namespace MOAR.Helpers
             }
         }
 
-        // --- Spawn Tooling ---
+        // ─────────────────────────────────────────────────────────────
+        // ─── SPAWN TOOLING ───────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
 
         public static string AddBotSpawn() => PostPlayerLocationTo("/moar/addBotSpawn");
         public static string AddSniperSpawn() => PostPlayerLocationTo("/moar/addSniperSpawn");
