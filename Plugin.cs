@@ -25,69 +25,117 @@ namespace MOAR
     public class Plugin : BaseUnityPlugin
     {
         public static ManualLogSource LogSource;
+        public static Plugin Instance { get; private set; }
+
+        private static bool _initialized;
         private static readonly Random _rng = new();
         private static string _hostPresetLabel = "Unknown";
 
         private void Awake()
         {
+            if (_initialized)
+            {
+                Logger.LogWarning("[MOAR] Plugin already initialized. Skipping duplicate Awake.");
+                return;
+            }
+
+            _initialized = true;
+            Instance = this;
             LogSource = Logger;
 
-            Settings.Init(Config);
-            Routers.Init(Config);
+            Logger.LogInfo("[MOAR] Awake - Initializing plugin");
 
-            new Harmony("com.moar.patches").PatchAll();
-
-            if (Settings.IsFika)
+            try
             {
-                DebugNotification.RegisterNetworkHandler();
-                MOARCoopPacketRouter.Register(); // ✅ Uses correct CoopHandler.LocalGameInstance
+                Settings.Init(Config);
+                Routers.Init(Config);
+
+                new Harmony("com.moar.patches").PatchAll();
+
+                if (Settings.IsFika && !FikaBackendUtils.IsServer)
+                {
+                    DebugNotification.RegisterNetworkHandler();
+                    MOARCoopPacketRouter.Register();
+                }
+
+                Logger.LogInfo("[MOAR] Awake complete.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[MOAR] Plugin Awake failed: {ex}");
             }
         }
 
         private void Start()
         {
-            EnablePatches();
-
-            if (Settings.IsFika && FikaBackendUtils.IsServer)
+            if (!_initialized)
             {
-                BroadcastPresetToClients(Settings.currentPreset.Value, Routers.GetAnnouncePresetName());
+                Logger.LogError("[MOAR] Start called without proper Awake initialization.");
+                return;
+            }
+
+            try
+            {
+                EnablePatches();
+
+                if (Settings.IsFika && FikaBackendUtils.IsServer)
+                {
+                    BroadcastPresetToClients(Settings.currentPreset.Value, Routers.GetAnnouncePresetName());
+                }
+
+                Logger.LogInfo("[MOAR] Start complete.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[MOAR] Start failed: {ex}");
             }
         }
 
         private void EnablePatches()
         {
-            new SniperPatch().Enable();
-            new AddEnemyPatch().Enable();
-            new NotificationPatch().Enable();
+            try
+            {
+                new SniperPatch().Enable();
+                new AddEnemyPatch().Enable();
+                new NotificationPatch().Enable();
 
-            if (Settings.enablePointOverlay.Value)
-                new OnGameStartedPatch().Enable();
+                if (Settings.enablePointOverlay.Value)
+                    new OnGameStartedPatch().Enable();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[MOAR] EnablePatches failed: {ex}");
+            }
         }
 
         private void Update()
         {
+            if (!_initialized) return;
+
+            var player = Singleton<GameWorld>.Instance?.MainPlayer;
+            if (player == null) return;
+
             if (TryPress(Settings.DeleteBotSpawn.Value))
-                AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
+                AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point", player.Location);
 
             if (TryPress(Settings.AddBotSpawn.Value))
-                AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point");
+                AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point", player.Location);
 
             if (TryPress(Settings.AddSniperSpawn.Value))
-                AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point");
+                AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point", player.Location);
 
             if (TryPress(Settings.AddPlayerSpawn.Value))
-                AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point");
+                AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point", player.Location);
 
             if (Settings.AnnounceKey.Value.BetterIsDown())
-                AnnouncePresetManually();
+                AnnouncePresetManually(player.Location);
         }
 
         private static bool TryPress(KeyboardShortcut shortcut) =>
-            shortcut.BetterIsDown() && Singleton<GameWorld>.Instance?.MainPlayer != null;
+            shortcut.BetterIsDown();
 
-        private static void AnnounceResult(string result, string fallbackMessage)
+        private static void AnnounceResult(string result, string fallbackMessage, string location = "Unknown")
         {
-            var location = Singleton<GameWorld>.Instance?.MainPlayer?.Location ?? "Unknown";
             var message = string.IsNullOrWhiteSpace(result) ? fallbackMessage : result;
 
             var notification = new DebugNotification
@@ -101,7 +149,7 @@ namespace MOAR
                 notification.BroadcastToClients();
         }
 
-        private static void AnnouncePresetManually()
+        private static void AnnouncePresetManually(string location = "Unknown")
         {
             var presetName = Settings.IsFika ? _hostPresetLabel : Routers.GetAnnouncePresetName();
             var notification = new DebugNotification
@@ -117,7 +165,7 @@ namespace MOAR
 
         private static void BroadcastPresetToClients(string presetName, string presetLabel)
         {
-            if (Singleton<FikaServer>.Instantiated)
+            if (Singleton<FikaServer>.Instantiated && Singleton<FikaServer>.Instance != null)
             {
                 var packet = new PresetSyncPacket(presetName, presetLabel);
                 Singleton<FikaServer>.Instance.SendDataToAll(ref packet, DeliveryMethod.ReliableOrdered, null);
