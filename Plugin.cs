@@ -151,29 +151,33 @@ namespace MOAR
 
         private static void BroadcastPresetToClients(string presetName, string presetLabel)
         {
+            // Only run on FIKA-enabled dedicated host (not clients or offline)
             if (!Settings.IsFika || !FikaBackendUtils.IsServer)
                 return;
 
             try
             {
+                // Construct and locally apply the sync packet
                 var packet = new PresetSyncPacket(presetName, presetLabel);
-                MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet); // Apply locally
+                MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet); // Apply locally for logs
 
+                // Broadcast using a known good method
                 var notification = new DebugNotification
                 {
                     Notification = $"Preset synced from host: {presetLabel}",
                     NotificationIcon = ENotificationIconType.EntryPoint
                 };
 
-                notification.BroadcastToClients();
-
-                LogSource.LogInfo($"[MOAR] Broadcasted preset sync: {presetLabel} ({presetName})");
+                notification.BroadcastToClients(); // Relies on FIKA internal routing (safe and tested)
+                Plugin.LogSource.LogInfo($"[MOAR] Broadcasted preset sync to clients: {presetLabel} ({presetName})");
             }
             catch (Exception ex)
             {
-                LogSource.LogError($"[MOAR] BroadcastPresetToClients failed: {ex.Message}");
+                Plugin.LogSource.LogError($"[MOAR] BroadcastPresetToClients failed: {ex.Message}");
             }
         }
+
+
 
         private static void EnablePatches()
         {

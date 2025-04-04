@@ -17,11 +17,11 @@ namespace MOAR.Networking
 
         /// <summary>
         /// Initiates the coroutine-based registration of packet handlers.
-        /// Safe to call repeatedly.
+        /// Safe to call repeatedly. Runs only if FIKA is installed and valid.
         /// </summary>
         public static void TryRegister()
         {
-            if (_registered || !Settings.IsFika)
+            if (_registered || !Settings.IsFika || Plugin.Instance == null)
                 return;
 
             Plugin.Instance.StartCoroutine(WaitAndRegister());
@@ -31,7 +31,7 @@ namespace MOAR.Networking
         {
             Plugin.LogSource.LogDebug("[MOARCoopPacketRouter] Waiting for IFikaNetworkManager...");
 
-            // Wait until FikaPlugin.Instance is valid and implements IFikaNetworkManager
+            // Wait until FikaPlugin.Instance is available and valid
             while (!(FikaPlugin.Instance is IFikaNetworkManager))
             {
                 yield return null;
@@ -46,13 +46,16 @@ namespace MOAR.Networking
                     MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet);
                 });
 
-                Plugin.LogSource.LogInfo("[MOARCoopPacketRouter] Registered PresetSyncPacket with FIKA.");
                 _registered = true;
+                Plugin.LogSource.LogInfo("[MOARCoopPacketRouter] PresetSyncPacket registered successfully.");
             }
             catch (System.Exception ex)
             {
-                Plugin.LogSource.LogError($"[MOARCoopPacketRouter] Packet registration failed: {ex.Message}");
+                Plugin.LogSource.LogError($"[MOARCoopPacketRouter] Registration error: {ex.Message}");
             }
+
+            // Optional: yield briefly to ensure sync stability in early raid phases
+            yield return null;
         }
     }
 }

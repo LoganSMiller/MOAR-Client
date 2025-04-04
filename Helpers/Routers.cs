@@ -9,7 +9,8 @@ using MOAR.Packets;
 using EFT;
 using Comfort.Common;
 using Fika.Core.Networking;
-using Fika.Core.Coop.Components;
+using Fika.Core;
+using UnityEngine;
 using MOAR.Networking;
 
 namespace MOAR.Helpers
@@ -37,27 +38,46 @@ namespace MOAR.Helpers
 
             _initialized = true;
 
-            if (Settings.IsFika && Singleton<FikaClient>.Instantiated)
+            if (Settings.IsFika)
             {
-                if (Singleton<FikaClient>.Instance is IFikaNetworkManager manager)
+                Plugin.Instance.StartCoroutine(WaitAndRegisterClientPacket());
+            }
+
+            Plugin.LogSource.LogInfo("[Routers] Initialization complete.");
+        }
+
+        private static System.Collections.IEnumerator WaitAndRegisterClientPacket()
+        {
+            Plugin.LogSource.LogDebug("[Routers] Waiting for IFikaNetworkManager...");
+
+            while (!(FikaPlugin.Instance is IFikaNetworkManager))
+            {
+                yield return null;
+            }
+
+            if (FikaPlugin.Instance is IFikaNetworkManager networkManager)
+            {
+                try
                 {
-                    manager.RegisterPacket<PresetSyncPacket>(packet =>
+                    networkManager.RegisterPacket<PresetSyncPacket>(packet =>
                     {
                         if (packet != null && !string.IsNullOrWhiteSpace(packet.PresetName))
                         {
                             HandleFikaPresetSync(packet.PresetLabel, packet.PresetName);
                         }
+                        else
+                        {
+                            Plugin.LogSource.LogWarning("[Routers] Received empty or invalid PresetSyncPacket.");
+                        }
                     });
 
-                    Plugin.LogSource.LogInfo("[Routers] FIKA PresetSyncPacket handler registered.");
+                    Plugin.LogSource.LogInfo("[Routers] Registered PresetSyncPacket handler (client).");
                 }
-                else
+                catch (Exception ex)
                 {
-                    Plugin.LogSource.LogWarning("[Routers] FikaClient.Instance is not IFikaNetworkManager.");
+                    Plugin.LogSource.LogError($"[Routers] Exception during packet registration: {ex.Message}");
                 }
             }
-
-            Plugin.LogSource.LogInfo("[Routers] Initialization complete.");
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -98,14 +118,19 @@ namespace MOAR.Helpers
         }
 
         public static string GetAnnouncePresetName() => _hostPresetLabel;
-
         public static void SetHostPresetLabel(string label) => _hostPresetLabel = label;
 
         private static Preset? FindPresetByLabel(string label)
         {
-            return Settings.PresetList?.FirstOrDefault(p =>
-                string.Equals(p.Label, label, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Name, label, StringComparison.OrdinalIgnoreCase));
+            if (Settings.PresetList == null)
+            {
+                Plugin.LogSource.LogError("[Routers] PresetList is null. Cannot match preset.");
+                return null;
+            }
+
+            return Settings.PresetList.FirstOrDefault(p =>
+                string.Equals(p.Label?.Trim(), label, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Name?.Trim(), label, StringComparison.OrdinalIgnoreCase));
         }
 
         public static string SetPreset(string label)
@@ -129,12 +154,12 @@ namespace MOAR.Helpers
             {
                 var json = RequestHandler.GetJson("/moar/getPresets");
                 var response = JsonConvert.DeserializeObject<GetPresetsListResponse>(json);
-                return response?.Data?.ToList() ?? new List<Preset>();
+                return response?.Data?.ToList() ?? new();
             }
             catch (Exception ex)
             {
                 Plugin.LogSource.LogError($"[GetPresetsList] Failed: {ex.Message}");
-                return new List<Preset>();
+                return new();
             }
         }
 
@@ -147,12 +172,12 @@ namespace MOAR.Helpers
             try
             {
                 var json = RequestHandler.GetJson("/moar/getServerConfigWithOverrides");
-                return JsonConvert.DeserializeObject<ConfigSettings>(json) ?? new ConfigSettings();
+                return JsonConvert.DeserializeObject<ConfigSettings>(json) ?? new();
             }
             catch (Exception ex)
             {
                 Plugin.LogSource.LogError($"[GetServerConfigWithOverrides] Failed: {ex.Message}");
-                return new ConfigSettings();
+                return new();
             }
         }
 
@@ -161,12 +186,12 @@ namespace MOAR.Helpers
             try
             {
                 var json = RequestHandler.GetJson("/moar/getDefaultConfig");
-                return JsonConvert.DeserializeObject<ConfigSettings>(json) ?? new ConfigSettings();
+                return JsonConvert.DeserializeObject<ConfigSettings>(json) ?? new();
             }
             catch (Exception ex)
             {
                 Plugin.LogSource.LogError($"[GetDefaultConfig] Failed: {ex.Message}");
-                return new ConfigSettings();
+                return new();
             }
         }
 
@@ -202,7 +227,7 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[PostPlayerLocationTo] Failed: {ex.Message}");
+                Plugin.LogSource.LogError($"[PostPlayerLocationTo] Failed on {endpoint}: {ex.Message}");
                 return "Error submitting player position.";
             }
         }
@@ -215,13 +240,25 @@ namespace MOAR.Helpers
         {
             Plugin.LogSource.LogInfo($"[FIKA Sync] Received preset: {presetLabel} ({presetName})");
 
-            var match = Settings.PresetList?.FirstOrDefault(p =>
-                string.Equals(p.Name, presetName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Label, presetLabel, StringComparison.OrdinalIgnoreCase));
+            if (Settings.PresetList == null)
+            {
+                Plugin.LogSource.LogError("[FIKA Sync] PresetList is null.");
+                return;
+            }
+
+            if (Settings.currentPreset == null)
+            {
+                Plugin.LogSource.LogError("[FIKA Sync] currentPreset config entry is null.");
+                return;
+            }
+
+            var match = Settings.PresetList.FirstOrDefault(p =>
+                string.Equals(p.Name?.Trim(), presetName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label?.Trim(), presetLabel, StringComparison.OrdinalIgnoreCase));
 
             if (match != null)
             {
-                if (Settings.currentPreset?.Value != match.Name)
+                if (Settings.currentPreset.Value != match.Name)
                 {
                     Settings.currentPreset.Value = match.Name;
                     _hostPresetLabel = match.Label;

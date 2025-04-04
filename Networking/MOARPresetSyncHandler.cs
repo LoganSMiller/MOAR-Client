@@ -1,21 +1,18 @@
-﻿using System;
-using MOAR.Packets;
-using MOAR.Components.Notifications;
-using Fika.Core.Coop.Utils;
-using MOAR.Helpers;
+﻿using MOAR.Helpers;
+using System;
+using System.Linq;
 
 namespace MOAR.Networking
 {
     /// <summary>
-    /// Handles reception of PresetSyncPacket from FIKA networking.
-    /// Synchronizes current preset and optionally rebroadcasts in headless/server mode.
+    /// Handles incoming preset sync packets and applies the correct configuration.
+    /// Invoked automatically during FIKA host → client synchronization.
     /// </summary>
-    internal static class MOARPresetSyncHandler
+    public static class MOARPresetSyncHandler
     {
         /// <summary>
-        /// Processes an incoming preset sync packet from the server or host.
+        /// Applies the received preset sync packet client-side.
         /// </summary>
-        /// <param name="packet">The preset sync packet received from the host.</param>
         public static void OnClientReceivedPresetPacket(PresetSyncPacket packet)
         {
             if (packet == null)
@@ -24,26 +21,37 @@ namespace MOAR.Networking
                 return;
             }
 
-            // Update preset configuration
-            Settings.currentPreset.Value = packet.PresetName;
-            Routers.SetHostPresetLabel(packet.PresetLabel);
-
-            Plugin.LogSource.LogInfo($"[MOARPresetSyncHandler] Synced preset from host: {packet.PresetName} ({packet.PresetLabel})");
-
-            // Create local notification
-            var notification = new DebugNotification
+            if (string.IsNullOrWhiteSpace(packet.PresetName))
             {
-                Notification = $"Server preset: {packet.PresetLabel}",
-                NotificationIcon = EFT.Communications.ENotificationIconType.EntryPoint
-            };
+                Plugin.LogSource.LogWarning("[MOARPresetSyncHandler] Preset name is empty.");
+                return;
+            }
 
-            notification.Display();
-
-            // Rebroadcast only if running as headless/server
-            if (Settings.IsFika && FikaBackendUtils.IsServer)
+            var presets = Settings.PresetList;
+            if (presets == null || presets.Count == 0)
             {
-                Plugin.LogSource.LogDebug("[MOARPresetSyncHandler] Rebroadcasting preset notification to connected clients.");
-                notification.BroadcastToClients();
+                Plugin.LogSource.LogWarning("[MOARPresetSyncHandler] Preset list is empty or null — cannot apply sync.");
+                return;
+            }
+
+            var match = presets.FirstOrDefault(p =>
+                string.Equals(p.Name, packet.PresetName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Label, packet.PresetLabel, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+            {
+                if (Settings.currentPreset != null)
+                {
+                    Settings.currentPreset.Value = match.Name;
+                }
+
+                Routers.SetHostPresetLabel(match.Label);
+                Plugin.LogSource.LogInfo($"[MOARPresetSyncHandler] Synchronized preset: {match.Label} ({match.Name})");
+            }
+            else
+            {
+                Plugin.LogSource.LogWarning($"[MOARPresetSyncHandler] No matching preset found for: {packet.PresetLabel} / {packet.PresetName}");
+                Plugin.LogSource.LogDebug($"[MOARPresetSyncHandler] Available presets: {string.Join(", ", presets.Select(p => p.Label))}");
             }
         }
     }
