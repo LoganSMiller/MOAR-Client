@@ -4,12 +4,15 @@ using EFT;
 using MOAR.Helpers;
 using SPT.Custom.CustomAI;
 using SPT.Reflection.Patching;
+using Fika.Core.Coop.Utils;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Prevents same-faction PMC AI from targeting each other unless faction-based aggression is enabled,
-    /// or if the bot is solo and not part of a coordinated squad.
+    /// Prevents same-faction PMC bots from attacking each other unless:
+    /// - Configured via 'factionAggression'
+    /// - Or they are solo/isolated
+    /// Always allows aggression across factions or against scavs.
     /// </summary>
     public class AddEnemyPatch : ModulePatch
     {
@@ -17,7 +20,7 @@ namespace MOAR.Patches
             typeof(BotsGroup).GetMethod(nameof(BotsGroup.AddEnemy), BindingFlags.Instance | BindingFlags.Public);
 
         /// <summary>
-        /// Filters out friendly-fire bot targeting unless allowed by settings or solo.
+        /// Evaluates whether a bot should be marked as an enemy before adding.
         /// </summary>
         [PatchPrefix]
         private static bool PatchPrefix(BotsGroup __instance, IPlayer person, EBotEnemyCause cause)
@@ -25,27 +28,28 @@ namespace MOAR.Patches
             if (__instance == null || person == null || !person.IsAI)
             {
                 if (Settings.debug.Value)
-                    Plugin.LogSource.LogDebug("[AddEnemyPatch] Skipped null or non-AI target.");
+                    Plugin.LogSource.LogDebug("[AddEnemyPatch] Skipped null, non-AI, or invalid target.");
                 return true;
             }
 
-            var groupSide = __instance.Side;
-            var targetSide = person.Side;
+            EPlayerSide groupSide = __instance.Side;
+            EPlayerSide targetSide = person.Side;
 
-            // Allow aggression if different factions or scavs are involved
+            // Always allow opposing factions or scav involvement
             if (groupSide != targetSide || groupSide == EPlayerSide.Savage || targetSide == EPlayerSide.Savage)
                 return true;
 
-            // Solo bots or factionAggression setting overrides default friendly-fire prevention
-            bool isSolo = (__instance.GetAllMembers()?.Count ?? 0) <= 1;
-            bool allowAggression = Settings.factionAggression.Value || isSolo;
+            // Evaluate solo bot fallback or configured aggression
+            bool isSoloBot = (__instance.GetAllMembers()?.Count ?? 0) <= 1;
+            bool allowSameFactionAggression = Settings.factionAggression.Value || isSoloBot;
 
-            if (!allowAggression && Settings.debug.Value)
+            if (!allowSameFactionAggression && Settings.debug.Value)
             {
-                Plugin.LogSource.LogDebug($"[AddEnemyPatch] Blocked same-faction aggression between {groupSide} bots.");
+                string context = FikaBackendUtils.IsServer ? "[Headless]" : "[Client]";
+                Plugin.LogSource.LogDebug($"{context} [AddEnemyPatch] Prevented {groupSide} bot from targeting {targetSide} (solo: {isSoloBot}, aggression: {Settings.factionAggression.Value})");
             }
 
-            return allowAggression;
+            return allowSameFactionAggression;
         }
     }
 }

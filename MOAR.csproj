@@ -131,7 +131,7 @@
     <Compile Include="Patches\BotZoneDumper.cs" />
     <Compile Include="Patches\NotificationPatch.cs" />
     <Compile Include="Patches\OnGameStartedPatch.cs" />
-    <Compile Include="Patches\OnGameStartedPatch2.cs" />
+    <Compile Include="Patches\BotZoneAwakePatch.cs" />
     <Compile Include="Patches\SniperPatch.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -10,29 +10,28 @@ namespace MOAR.Packets
     public sealed class SetPresetRequest
     {
         /// <summary>
-        /// Gets or sets the internal name or kebab-case label of the preset to activate.
+        /// The internal name or label of the preset to activate.
         /// Must match a preset defined in the server configuration.
         /// </summary>
         public string Preset { get; set; } = string.Empty;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SetPresetRequest"/> class.
-        /// Required for JSON deserialization.
+        /// Parameterless constructor for JSON deserialization.
         /// </summary>
         public SetPresetRequest() { }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SetPresetRequest"/> class with a specified preset name or label.
+        /// Constructs a new request with the specified preset name or label.
         /// </summary>
-        /// <param name="preset">The name or label of the preset to apply.</param>
+        /// <param name="preset">The name or label of the preset to activate.</param>
         public SetPresetRequest(string preset)
         {
             Preset = string.IsNullOrWhiteSpace(preset) ? string.Empty : preset.Trim();
         }
 
         /// <summary>
-        /// Returns a readable representation of the preset request for debugging.
+        /// Returns a debug-friendly string representation.
         /// </summary>
-        public override string ToString() => $"Preset = {Preset}";
+        public override string ToString() => $"Preset = \"{Preset}\"";
     }
 }

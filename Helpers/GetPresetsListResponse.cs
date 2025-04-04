@@ -4,26 +4,27 @@ using System.Collections.Generic;
 namespace MOAR.Helpers
 {
     /// <summary>
-    /// Represents the deserialized response from the server containing
-    /// the list of available AI spawn presets.
-    /// This is consumed by the client UI to populate the dropdown and apply selected presets.
+    /// Represents the server response containing all available preset definitions.
+    /// Used by the client to populate dropdowns, apply configurations, or validate current state.
     /// </summary>
     [Serializable]
     public class GetPresetsListResponse
     {
         /// <summary>
-        /// The collection of all available presets returned by the server.
-        /// Each item contains both a label and internal name.
+        /// Collection of all presets returned by the server.
+        /// Each includes a unique name, label, and optional settings payload.
         /// </summary>
         public List<Preset> Data { get; set; } = new();
 
         /// <summary>
-        /// Indicates whether the server responded successfully (optional).
+        /// Indicates whether the request was successful.
+        /// Used for fallback handling and status checks.
         /// </summary>
         public bool Success { get; set; } = true;
 
         /// <summary>
-        /// Optional server message or error string (null if success).
+        /// Optional error or status message returned by the server.
+        /// Empty or null if successful.
         /// </summary>
         public string Message { get; set; } = string.Empty;
     }

@@ -1,50 +1,59 @@
 ﻿using LiteNetLib.Utils;
 
-namespace MOAR.Packets
+namespace MOAR.Networking
 {
     /// <summary>
-    /// Packet used to synchronize the selected preset from server to client via FIKA networking.
+    /// Represents a FIKA network packet for syncing preset state across Coop, server, and headless clients.
     /// </summary>
     public class PresetSyncPacket : INetSerializable
     {
         /// <summary>
-        /// Internal identifier of the preset (e.g., "live-like").
+        /// Internal identifier of the preset (used in config and routing).
         /// </summary>
-        public string PresetName { get; set; } = string.Empty;
+        public string PresetName { get; private set; } = "live-like";
 
         /// <summary>
-        /// User-facing label of the preset (e.g., "Live-Like").
+        /// Friendly display label used for UI and logging.
         /// </summary>
-        public string PresetLabel { get; set; } = string.Empty;
+        public string PresetLabel { get; private set; } = "Live Preset";
 
         /// <summary>
-        /// Parameterless constructor for deserialization.
+        /// Parameterless constructor for network deserialization.
         /// </summary>
         public PresetSyncPacket() { }
 
         /// <summary>
-        /// Constructs a new sync packet with preset name and label.
+        /// Constructs a packet with specified preset name and optional label.
         /// </summary>
-        /// <param name="presetName">Internal name of the preset.</param>
-        /// <param name="presetLabel">Human-readable display name.</param>
-        public PresetSyncPacket(string presetName, string presetLabel)
+        /// <param name="name">Unique config-safe preset name.</param>
+        /// <param name="label">Optional UI label. Falls back to <paramref name="name"/>.</param>
+        public PresetSyncPacket(string name, string label)
         {
-            PresetName = presetName ?? string.Empty;
-            PresetLabel = presetLabel ?? string.Empty;
+            PresetName = string.IsNullOrWhiteSpace(name) ? "live-like" : name.Trim();
+            PresetLabel = string.IsNullOrWhiteSpace(label) ? PresetName : label.Trim();
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Serializes the packet data to a binary network stream.
+        /// </summary>
         public void Serialize(NetDataWriter writer)
         {
-            writer.Put(PresetName);
-            writer.Put(PresetLabel);
+            writer.Put(PresetName ?? "live-like");
+            writer.Put(PresetLabel ?? PresetName ?? "Live Preset");
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Deserializes the packet data from a binary network stream.
+        /// </summary>
         public void Deserialize(NetDataReader reader)
         {
-            PresetName = reader.GetString();
-            PresetLabel = reader.GetString();
+            PresetName = reader.GetString()?.Trim() ?? "live-like";
+            PresetLabel = reader.GetString()?.Trim() ?? PresetName;
         }
+
+        /// <summary>
+        /// Returns a readable debug representation of the packet.
+        /// </summary>
+        public override string ToString() => $"{PresetLabel} ({PresetName})";
     }
 }

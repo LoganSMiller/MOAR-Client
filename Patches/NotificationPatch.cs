@@ -5,12 +5,13 @@ using EFT.Communications;
 using HarmonyLib;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
+using Fika.Core.Coop.Utils;
 
 namespace MOAR.Patches
 {
     /// <summary>
     /// Displays the current MOAR preset with a randomized flair message when a raid starts.
-    /// Prevents duplicate announcements when using FIKA Coop.
+    /// Automatically avoids duplication in FIKA multiplayer and respects headless host logic.
     /// </summary>
     public sealed class NotificationPatch : ModulePatch
     {
@@ -21,7 +22,8 @@ namespace MOAR.Patches
             AccessTools.Method(typeof(GameWorld), nameof(GameWorld.OnGameStarted));
 
         /// <summary>
-        /// Prefix logic to announce preset with flair if enabled and not in FIKA multiplayer.
+        /// Prefix logic to announce preset with flair if enabled.
+        /// Skips FIKA clients and non-hosts to avoid duplicate messaging.
         /// </summary>
         [PatchPrefix]
         private static void Prefix()
@@ -29,9 +31,12 @@ namespace MOAR.Patches
             if (!Settings.ShowPresetOnRaidStart.Value)
                 return;
 
-            // Skip FIKA to avoid duplication — host handles it
-            if (Settings.IsFika)
+            // Prevent redundant notifications if part of FIKA multiplayer
+            if (Settings.IsFika && !FikaBackendUtils.IsServer)
+            {
+                Plugin.LogSource.LogDebug("[NotificationPatch] Skipped client-side preset announcement (FIKA active).");
                 return;
+            }
 
             var selected = Settings.PresetList.FirstOrDefault(p => p.Name == Settings.currentPreset.Value);
             var label = selected?.Label ?? Settings.currentPreset.Value ?? "Unknown";

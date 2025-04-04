@@ -31,7 +31,7 @@ namespace MOAR.Patches
         /// Returns true if the zone name suggests a sniper zone.
         /// </summary>
         private static bool IsSnipeZoneName(string name) =>
-            !string.IsNullOrEmpty(name) && name.ToLowerInvariant().Contains("custom_snipe");
+            !string.IsNullOrWhiteSpace(name) && name.ToLowerInvariant().Contains("custom_snipe");
 
         /// <summary>
         /// Finds the bot zone name for a given spawn point ID.
@@ -41,7 +41,7 @@ namespace MOAR.Patches
             foreach (var point in spawnPoints)
             {
                 if (point.Id == id)
-                    return point.BotZoneName;
+                    return point.BotZoneName ?? string.Empty;
             }
             return string.Empty;
         }

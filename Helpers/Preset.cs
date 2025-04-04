@@ -3,50 +3,51 @@
 namespace MOAR.Helpers
 {
     /// <summary>
-    /// Represents a named spawn configuration preset with an optional object-based settings payload.
+    /// Represents a named configuration preset used to control spawn behavior and AI settings.
+    /// Presets contain a unique name, a display label, and optional serialized settings payload.
     /// </summary>
     public class Preset
     {
         /// <summary>
-        /// The internal identifier for the preset (used for storage, config selection).
+        /// Internal identifier used for referencing the preset (e.g. in configs or network sync).
         /// </summary>
         public string Name { get; set; } = "Unnamed";
 
         /// <summary>
-        /// The display label shown to users in the UI. Falls back to Name if not specified.
+        /// User-facing display label shown in UI and logs. Falls back to <see cref="Name"/> if null or empty.
         /// </summary>
         public string Label { get; set; } = "Unnamed";
 
         /// <summary>
-        /// The optional configuration payload for this preset.
-        /// This can be any serializable structure (e.g. Dictionary, POCO, JSON).
+        /// Optional configuration payload for the preset.
+        /// Can be any serializable object (e.g. POCO, Dictionary, JSON).
         /// </summary>
         public object Settings { get; set; } = new();
 
         /// <summary>
-        /// Parameterless constructor for deserialization.
+        /// Default constructor for serialization and fallback.
         /// </summary>
         public Preset() { }
 
         /// <summary>
-        /// Creates a new preset with a name, label, and custom settings payload.
+        /// Creates a new preset with the given name, label, and optional payload.
         /// </summary>
-        /// <param name="name">The internal name identifier.</param>
-        /// <param name="label">The display label. Falls back to <paramref name="name"/> if null or empty.</param>
-        /// <param name="settings">The settings object associated with this preset.</param>
+        /// <param name="name">Unique internal identifier (required).</param>
+        /// <param name="label">User-friendly label. Falls back to <paramref name="name"/> if null or empty.</param>
+        /// <param name="settings">Custom payload object (can be null).</param>
         public Preset(string name, string? label, object? settings)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentNullException(nameof(name), "Preset name cannot be null or empty.");
 
-            Name = name;
-            Label = string.IsNullOrWhiteSpace(label) ? name : label;
+            Name = name.Trim();
+            Label = string.IsNullOrWhiteSpace(label) ? Name : label.Trim();
             Settings = settings ?? new object();
         }
 
         /// <summary>
-        /// Returns the label or fallback name for debug, logging, or UI.
+        /// Returns the display label if set, otherwise falls back to the internal name.
         /// </summary>
-        public override string ToString() => !string.IsNullOrWhiteSpace(Label) ? Label : Name;
+        public override string ToString() => string.IsNullOrWhiteSpace(Label) ? Name : Label;
     }
 }

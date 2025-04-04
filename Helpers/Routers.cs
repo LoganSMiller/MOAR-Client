@@ -10,11 +10,13 @@ using EFT;
 using Comfort.Common;
 using Fika.Core.Networking;
 using Fika.Core.Coop.Components;
+using MOAR.Networking;
 
 namespace MOAR.Helpers
 {
     /// <summary>
-    /// Handles all client-side server API routing logic for config, presets, and spawn tools.
+    /// Provides all client-side routing logic for HTTP and FIKA-based config/preset synchronization.
+    /// Includes spawn tooling, preset management, and headless-safe fallback behavior.
     /// </summary>
     internal static class Routers
     {
@@ -22,18 +24,20 @@ namespace MOAR.Helpers
         private static bool _initialized;
 
         /// <summary>
-        /// Initializes networking hooks and registers packet sync listeners.
+        /// Initializes networking and registers FIKA packet listeners if necessary.
+        /// Only safe to call once.
         /// </summary>
         public static void Init(ConfigFile config)
         {
             if (_initialized)
             {
-                Plugin.LogSource.LogDebug("[Routers] Init skipped: already initialized.");
+                Plugin.LogSource.LogDebug("[Routers] Init skipped — already initialized.");
                 return;
             }
 
             _initialized = true;
 
+            // Register FIKA-side listener if client is active and FIKA is enabled
             if (Settings.IsFika && Singleton<FikaClient>.Instantiated)
             {
                 if (Singleton<FikaClient>.Instance is IFikaNetworkManager manager)
@@ -43,11 +47,11 @@ namespace MOAR.Helpers
                         HandleFikaPresetSync(packet.PresetLabel, packet.PresetName);
                     });
 
-                    Plugin.LogSource.LogInfo("[FIKA Sync] PresetSyncPacket handler registered.");
+                    Plugin.LogSource.LogInfo("[Routers] FIKA PresetSyncPacket handler registered.");
                 }
                 else
                 {
-                    Plugin.LogSource.LogWarning("[FIKA Sync] FikaClient.Instance is not IFikaNetworkManager.");
+                    Plugin.LogSource.LogWarning("[Routers] FikaClient.Instance is not IFikaNetworkManager.");
                 }
             }
 
@@ -58,6 +62,9 @@ namespace MOAR.Helpers
         // ─── PRESET ACCESSORS ────────────────────────────────────────
         // ─────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Gets the current preset label (server-side preferred).
+        /// </summary>
         public static string GetCurrentPresetLabel()
         {
             try
@@ -66,11 +73,14 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogWarning($"[GetCurrentPresetLabel] Fallback to client config: {ex.Message}");
+                Plugin.LogSource.LogWarning($"[GetCurrentPresetLabel] Fallback to client: {ex.Message}");
                 return Settings.currentPreset?.Value ?? Settings.ServerStoredDefaults?.Name ?? "live-like";
             }
         }
 
+        /// <summary>
+        /// Gets the preset label used for announcement logic.
+        /// </summary>
         public static string GetAnnouncePresetLabel()
         {
             try
@@ -79,11 +89,14 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogWarning($"[GetAnnouncePresetLabel] Fallback to client config: {ex.Message}");
+                Plugin.LogSource.LogWarning($"[GetAnnouncePresetLabel] Fallback to client: {ex.Message}");
                 return Settings.currentPreset?.Value ?? Settings.ServerStoredDefaults?.Name ?? "live-like";
             }
         }
 
+        /// <summary>
+        /// Attempts to find a preset name based on the current preset label.
+        /// </summary>
         public static string GetCurrentPresetName()
         {
             var label = GetCurrentPresetLabel();
@@ -91,20 +104,29 @@ namespace MOAR.Helpers
             return preset?.Name ?? label ?? "Unknown";
         }
 
+        /// <summary>
+        /// Gets the preset name for host announcements.
+        /// </summary>
         public static string GetAnnouncePresetName() => _hostPresetLabel;
 
-        public static void SetHostPresetLabel(string label)
-        {
-            _hostPresetLabel = label;
-        }
+        /// <summary>
+        /// Caches the current host preset label on this client.
+        /// </summary>
+        public static void SetHostPresetLabel(string label) => _hostPresetLabel = label;
 
-        private static Preset FindPresetByLabel(string label)
+        /// <summary>
+        /// Searches for a preset by label or name (case-insensitive).
+        /// </summary>
+        private static Preset? FindPresetByLabel(string label)
         {
             return Settings.PresetList?.FirstOrDefault(p =>
                 string.Equals(p.Label, label, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(p.Name, label, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// Attempts to send a preset change request to the server.
+        /// </summary>
         public static string SetPreset(string label)
         {
             try
@@ -115,11 +137,14 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[SetPreset] Failed to set preset '{label}': {ex.Message}");
+                Plugin.LogSource.LogError($"[SetPreset] Failed: {ex.Message}");
                 return "Failed to set preset.";
             }
         }
 
+        /// <summary>
+        /// Fetches all presets available from the server.
+        /// </summary>
         public static List<Preset> GetPresetsList()
         {
             try
@@ -130,7 +155,7 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[GetPresetsList] Failed to fetch presets: {ex.Message}");
+                Plugin.LogSource.LogError($"[GetPresetsList] Failed: {ex.Message}");
                 return new List<Preset>();
             }
         }
@@ -139,6 +164,9 @@ namespace MOAR.Helpers
         // ─── CONFIG MANAGEMENT ───────────────────────────────────────
         // ─────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Loads the server config merged with current overrides.
+        /// </summary>
         public static ConfigSettings GetServerConfigWithOverrides()
         {
             try
@@ -148,11 +176,14 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[GetServerConfigWithOverrides] Error: {ex.Message}");
+                Plugin.LogSource.LogError($"[GetServerConfigWithOverrides] Failed: {ex.Message}");
                 return new ConfigSettings();
             }
         }
 
+        /// <summary>
+        /// Loads the server's default configuration.
+        /// </summary>
         public static ConfigSettings GetDefaultConfig()
         {
             try
@@ -162,11 +193,14 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[GetDefaultConfig] Error: {ex.Message}");
+                Plugin.LogSource.LogError($"[GetDefaultConfig] Failed: {ex.Message}");
                 return new ConfigSettings();
             }
         }
 
+        /// <summary>
+        /// Pushes an override config to the server (admin only).
+        /// </summary>
         public static void SetOverrideConfig(ConfigSettings settings)
         {
             try
@@ -176,7 +210,7 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[SetOverrideConfig] Failed to push config: {ex.Message}");
+                Plugin.LogSource.LogError($"[SetOverrideConfig] Failed to push: {ex.Message}");
             }
         }
 
@@ -199,18 +233,21 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[PostPlayerLocationTo] Failed to post to {endpoint}: {ex.Message}");
+                Plugin.LogSource.LogError($"[PostPlayerLocationTo] Failed on {endpoint}: {ex.Message}");
                 return "Error submitting player position.";
             }
         }
 
         // ─────────────────────────────────────────────────────────────
-        // ─── FIKA HANDSHAKE LOGIC ────────────────────────────────────
+        // ─── FIKA SYNC (CLIENT & HEADLESS) ──────────────────────
         // ─────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Called when a preset sync packet is received via FIKA (host → clients).
+        /// </summary>
         public static void HandleFikaPresetSync(string presetLabel, string presetName)
         {
-            Plugin.LogSource.LogInfo($"[FIKA Sync] Received preset from FIKA: {presetLabel} ({presetName})");
+            Plugin.LogSource.LogInfo($"[FIKA Sync] Received preset: {presetLabel} ({presetName})");
 
             var match = Settings.PresetList?.Find(p =>
                 string.Equals(p.Name, presetName, StringComparison.OrdinalIgnoreCase) ||
@@ -220,11 +257,11 @@ namespace MOAR.Helpers
             {
                 Settings.currentPreset.Value = match.Name;
                 _hostPresetLabel = match.Label;
-                Plugin.LogSource.LogInfo($"[FIKA Sync] Applied synced preset: {match.Label} ({match.Name})");
+                Plugin.LogSource.LogInfo($"[FIKA Sync] Applied: {match.Label} ({match.Name})");
             }
             else
             {
-                Plugin.LogSource.LogWarning($"[FIKA Sync] No matching preset found for: {presetLabel} / {presetName}");
+                Plugin.LogSource.LogWarning($"[FIKA Sync] No match for: {presetLabel} / {presetName}");
             }
         }
     }

@@ -12,16 +12,17 @@ using UnityEngine;
 namespace MOAR.Helpers
 {
     /// <summary>
-    /// Common utility methods for UI messaging, location sync, and player coordinate capture.
+    /// Utility methods used across MOAR for player tracking, debug notifications,
+    /// and sync-safe network-aware message display.
     /// </summary>
     public static class Methods
     {
         /// <summary>
-        /// Displays an in-game notification and safely broadcasts it in multiplayer if FIKA is present.
-        /// This method is FIKA-safe and does nothing multiplayer-wise if FIKA is not loaded.
+        /// Displays a client-side notification and optionally broadcasts to other players if in FIKA multiplayer.
+        /// Safe for single-player, host, client, and headless environments.
         /// </summary>
-        /// <param name="message">Message text to show</param>
-        /// <param name="icon">Optional icon type (default = Quest)</param>
+        /// <param name="message">The message text to display.</param>
+        /// <param name="icon">Optional notification icon (defaults to Quest icon).</param>
         public static void DisplayMessage(string message, ENotificationIconType icon = ENotificationIconType.Quest)
         {
             if (string.IsNullOrWhiteSpace(message))
@@ -40,19 +41,18 @@ namespace MOAR.Helpers
 
                 notification.Display();
 
-                // Only broadcast if FIKA is active
+                // Optional network broadcast in FIKA Coop/Headless
                 if (Settings.IsFika)
                     notification.BroadcastToClients();
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[DisplayMessage] Error: {ex.Message}");
+                Plugin.LogSource.LogError($"[DisplayMessage] Exception: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Triggers a location info refresh by querying the backend session.
-        /// Used to refresh available zone and raid metadata.
+        /// Asynchronously refreshes backend location info (e.g. after map changes).
         /// </summary>
         public static async Task RefreshLocationInfo()
         {
@@ -64,19 +64,19 @@ namespace MOAR.Helpers
                 }
                 else
                 {
-                    Plugin.LogSource.LogWarning("[RefreshLocationInfo] BackEndSession is null");
+                    Plugin.LogSource.LogWarning("[RefreshLocationInfo] Backend session unavailable.");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[RefreshLocationInfo] Error refreshing: {ex.Message}");
+                Plugin.LogSource.LogError($"[RefreshLocationInfo] Failed to refresh: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Returns current player world position and location string for spawn tracking and server sync.
+        /// Retrieves the player's current world position and map for use in spawn-related tools.
+        /// Returns a fallback response if player or game state is invalid.
         /// </summary>
-        /// <returns>AddSpawnRequest with position and map</returns>
         public static AddSpawnRequest GetPlayersCoordinatesAndLevel()
         {
             try
@@ -85,11 +85,11 @@ namespace MOAR.Helpers
 
                 if (player == null)
                 {
-                    Plugin.LogSource.LogWarning("[GetPlayersCoordinatesAndLevel] MainPlayer is null");
+                    Plugin.LogSource.LogWarning("[GetPlayersCoordinatesAndLevel] MainPlayer is null.");
                     return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
                 }
 
-                Vector3 pos = player.Position;
+                var pos = player.Position;
 
                 return new AddSpawnRequest
                 {
@@ -104,13 +104,14 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Error: {ex.Message}");
+                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Exception: {ex.Message}");
                 return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
             }
         }
 
         /// <summary>
-        /// Polls for the announce key each frame and triggers manual preset display if pressed.
+        /// Detects when the user presses the AnnounceKey and shows the current preset.
+        /// Used during runtime for debug or multiplayer awareness.
         /// </summary>
         public static void CheckAnnounceKey()
         {

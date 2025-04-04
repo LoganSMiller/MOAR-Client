@@ -7,6 +7,8 @@ using BepInEx.Logging;
 using EFT.Communications;
 using Newtonsoft.Json;
 using UnityEngine;
+using MOAR.Helpers;
+using Fika.Core.Coop.Utils;
 
 namespace MOAR.Helpers
 {
@@ -83,7 +85,7 @@ namespace MOAR.Helpers
             PresetList = Routers.GetPresetsList();
             ServerStoredValues = Routers.GetServerConfigWithOverrides();
 
-            var fallbackPresetName = config.Bind("1. Main Settings", "Moar Preset Fallback", "live-like").Value?.Trim().ToLowerInvariant();
+            var fallbackPresetName = _config.Bind("1. Main Settings", "Moar Preset Fallback", "live-like").Value?.Trim().ToLowerInvariant();
             var liveLabel = Routers.GetCurrentPresetLabel()?.Trim().ToLowerInvariant();
 
             var selectedPreset = PresetList.FirstOrDefault(p =>
@@ -92,55 +94,55 @@ namespace MOAR.Helpers
                 ?? PresetList.FirstOrDefault(p => p.Name?.Trim().ToLowerInvariant() == fallbackPresetName)
                 ?? PresetList.FirstOrDefault();
 
-            currentPreset = config.Bind("1. Main Settings", "Moar Preset",
+            currentPreset = _config.Bind("1. Main Settings", "Moar Preset",
                 selectedPreset?.Name ?? "live-like",
                 new ConfigDescription("Preset to apply.", new AcceptableValueList<string>(PresetList.Select(p => p.Name).ToArray())));
 
-            ShowPresetOnRaidStart = config.Bind("1. Main Settings", "Preset Announce On/Off", true);
-            AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
-            factionAggression = config.Bind("1. Main Settings", "Faction Based Aggression On/Off", false);
+            ShowPresetOnRaidStart = _config.Bind("1. Main Settings", "Preset Announce On/Off", true);
+            AnnounceKey = _config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
+            factionAggression = _config.Bind("1. Main Settings", "Faction Based Aggression On/Off", false);
 
-            startingPmcs = config.Bind("1. Main Settings", "Starting PMCS On/Off", ServerStoredDefaults.startingPmcs);
-            spawnSmoothing = config.Bind("1. Main Settings", "Spawn Smoothing On/Off", ServerStoredDefaults.spawnSmoothing);
-            randomSpawns = config.Bind("1. Main Settings", "Random Spawns On/Off", ServerStoredDefaults.randomSpawns);
+            startingPmcs = _config.Bind("1. Main Settings", "Starting PMCS On/Off", ServerStoredDefaults.startingPmcs);
+            spawnSmoothing = _config.Bind("1. Main Settings", "Spawn Smoothing On/Off", ServerStoredDefaults.spawnSmoothing);
+            randomSpawns = _config.Bind("1. Main Settings", "Random Spawns On/Off", ServerStoredDefaults.randomSpawns);
 
-            pmcDifficulty = config.Bind("1. Main Settings", "PMC Difficulty", ServerStoredDefaults.pmcDifficulty);
-            scavDifficulty = config.Bind("1. Main Settings", "Scav Difficulty", ServerStoredDefaults.scavDifficulty);
+            pmcDifficulty = _config.Bind("1. Main Settings", "PMC Difficulty", ServerStoredDefaults.pmcDifficulty);
+            scavDifficulty = _config.Bind("1. Main Settings", "Scav Difficulty", ServerStoredDefaults.scavDifficulty);
 
             maxBotCap = _config.Bind("2. Custom game Settings", "MaxBotCap", ServerStoredDefaults.maxBotCap);
             maxBotPerZone = _config.Bind("2. Custom game Settings", "MaxBotPerZone", ServerStoredDefaults.maxBotPerZone);
 
-            scavGroupChance = _config.Bind("2. Custom game Settings", "scavGroupChance Percentage", ServerStoredDefaults.scavGroupChance);
-            pmcGroupChance = _config.Bind("2. Custom game Settings", "pmcGroupChance Percentage", ServerStoredDefaults.pmcGroupChance);
-            sniperGroupChance = _config.Bind("2. Custom game Settings", "sniperGroupChance Percentage", ServerStoredDefaults.sniperGroupChance);
+            scavGroupChance = _config.Bind("2. Custom game Settings", "scavGroupChance", ServerStoredDefaults.scavGroupChance);
+            pmcGroupChance = _config.Bind("2. Custom game Settings", "pmcGroupChance", ServerStoredDefaults.pmcGroupChance);
+            sniperGroupChance = _config.Bind("2. Custom game Settings", "sniperGroupChance", ServerStoredDefaults.sniperGroupChance);
+
             pmcMaxGroupSize = _config.Bind("2. Custom game Settings", "pmcMaxGroupSize", ServerStoredDefaults.pmcMaxGroupSize);
             scavMaxGroupSize = _config.Bind("2. Custom game Settings", "scavMaxGroupSize", ServerStoredDefaults.scavMaxGroupSize);
             sniperMaxGroupSize = _config.Bind("2. Custom game Settings", "sniperMaxGroupSize", ServerStoredDefaults.sniperMaxGroupSize);
 
-            zombiesEnabled = _config.Bind("2. Custom game Settings", "zombiesEnabled On/Off", ServerStoredDefaults.zombiesEnabled);
-            zombieHealth = _config.Bind("2. Custom game Settings", "ZombieHealth", ServerStoredDefaults.zombieHealth);
+            zombiesEnabled = _config.Bind("2. Custom game Settings", "zombiesEnabled", ServerStoredDefaults.zombiesEnabled);
+            zombieHealth = _config.Bind("2. Custom game Settings", "zombieHealth", ServerStoredDefaults.zombieHealth);
+            zombieWaveQuantity = _config.Bind("2. Custom game Settings", "zombieWaveQuantity", ServerStoredDefaults.zombieWaveQuantity);
+            zombieWaveDistribution = _config.Bind("2. Custom game Settings", "zombieWaveDistribution", ServerStoredDefaults.zombieWaveDistribution);
+            scavWaveQuantity = _config.Bind("2. Custom game Settings", "scavWaveQuantity", ServerStoredDefaults.scavWaveQuantity);
+            scavWaveDistribution = _config.Bind("2. Custom game Settings", "scavWaveDistribution", ServerStoredDefaults.scavWaveDistribution);
+            pmcWaveQuantity = _config.Bind("2. Custom game Settings", "pmcWaveQuantity", ServerStoredDefaults.pmcWaveQuantity);
+            pmcWaveDistribution = _config.Bind("2. Custom game Settings", "pmcWaveDistribution", ServerStoredDefaults.pmcWaveDistribution);
 
-            zombieWaveQuantity = _config.Bind("2. Custom game Settings", "ZombieWaveQuantity", ServerStoredDefaults.zombieWaveQuantity);
-            zombieWaveDistribution = _config.Bind("2. Custom game Settings", "ZombieWaveDistribution", ServerStoredDefaults.zombieWaveDistribution);
-            scavWaveQuantity = _config.Bind("2. Custom game Settings", "ScavWaveQuantity", ServerStoredDefaults.scavWaveQuantity);
-            scavWaveDistribution = _config.Bind("2. Custom game Settings", "ScavWaveDistribution", ServerStoredDefaults.scavWaveDistribution);
-            pmcWaveQuantity = _config.Bind("2. Custom game Settings", "PmcWaveQuantity", ServerStoredDefaults.pmcWaveQuantity);
-            pmcWaveDistribution = _config.Bind("2. Custom game Settings", "PmcWaveDistribution", ServerStoredDefaults.pmcWaveDistribution);
+            debug = _config.Bind("3.Debug", "Debug Mode", ServerStoredDefaults.debug);
 
-            debug = _config.Bind("3.Debug", "debug On/Off", ServerStoredDefaults.debug);
-
-            AddBotSpawn = _config.Bind("4. Advanced", "Add a bot spawn", default(KeyboardShortcut));
-            AddSniperSpawn = _config.Bind("4. Advanced", "Add a sniper spawn", default(KeyboardShortcut));
-            DeleteBotSpawn = _config.Bind("4. Advanced", "Delete a bot spawn", default(KeyboardShortcut));
-            AddPlayerSpawn = _config.Bind("4. Advanced", "Add a player spawn", default(KeyboardShortcut));
-            enablePointOverlay = _config.Bind("4. Advanced", "Spawnpoint overlay On/Off", false);
+            AddBotSpawn = _config.Bind("4. Advanced", "Add Bot Spawn", default(KeyboardShortcut));
+            AddSniperSpawn = _config.Bind("4. Advanced", "Add Sniper Spawn", default(KeyboardShortcut));
+            DeleteBotSpawn = _config.Bind("4. Advanced", "Delete Bot Spawn", default(KeyboardShortcut));
+            AddPlayerSpawn = _config.Bind("4. Advanced", "Add Player Spawn", default(KeyboardShortcut));
+            enablePointOverlay = _config.Bind("4. Advanced", "Enable Spawnpoint Overlay", false);
 
             currentPreset.SettingChanged += (_, _) => OnPresetChange();
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
             randomSpawns.SettingChanged += (_, _) => OnStartingPmcsChanged();
             startingPmcs.SettingChanged += (_, _) => OnStartingPmcsChanged();
 
-            if (!IsFika && ShowPresetOnRaidStart.Value && selectedPreset != null)
+            if (!IsFika && !FikaBackendUtils.IsHeadless && ShowPresetOnRaidStart.Value && selectedPreset != null)
                 Methods.DisplayMessage($"Live preset: {selectedPreset.Label}", ENotificationIconType.Quest);
         }
 
@@ -149,8 +151,8 @@ namespace MOAR.Helpers
             var selected = PresetList.FirstOrDefault(p => p.Name == currentPreset.Value);
             if (selected != null)
             {
-                Methods.DisplayMessage($"Current preset: {selected.Label ?? selected.Name}", ENotificationIconType.Quest);
                 ApplyPresetSettings(selected);
+                Methods.DisplayMessage($"Current preset: {selected.Label ?? selected.Name}", ENotificationIconType.Quest);
                 Routers.SetPreset(selected.Name);
             }
             else
@@ -161,12 +163,12 @@ namespace MOAR.Helpers
 
         private static void ApplyPresetSettings(Preset preset)
         {
-            if (preset?.Settings == null)
-                return;
+            if (preset?.Settings == null) return;
 
             try
             {
-                var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(preset.Settings));
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                    JsonConvert.SerializeObject(preset.Settings));
 
                 void TrySet<T>(string key, Action<T> setter)
                 {
@@ -176,20 +178,19 @@ namespace MOAR.Helpers
                     }
                 }
 
-                TrySet<bool>("randomSpawns", (v) => randomSpawns.Value = v);
-                TrySet<bool>("spawnSmoothing", (v) => spawnSmoothing.Value = v);
-                TrySet<bool>("startingPmcs", (v) => startingPmcs.Value = v);
-
-                TrySet<double>("scavGroupChance", (v) => scavGroupChance.Value = v);
-                TrySet<int>("scavMaxGroupSize", (v) => scavMaxGroupSize.Value = v);
-                TrySet<double>("pmcGroupChance", (v) => pmcGroupChance.Value = v);
-                TrySet<int>("pmcMaxGroupSize", (v) => pmcMaxGroupSize.Value = v);
-                TrySet<double>("pmcWaveQuantity", (v) => pmcWaveQuantity.Value = v);
-                TrySet<double>("pmcWaveDistribution", (v) => pmcWaveDistribution.Value = v);
+                TrySet("randomSpawns", (bool v) => randomSpawns.Value = v);
+                TrySet("spawnSmoothing", (bool v) => spawnSmoothing.Value = v);
+                TrySet("startingPmcs", (bool v) => startingPmcs.Value = v);
+                TrySet("scavGroupChance", (double v) => scavGroupChance.Value = v);
+                TrySet("scavMaxGroupSize", (int v) => scavMaxGroupSize.Value = v);
+                TrySet("pmcGroupChance", (double v) => pmcGroupChance.Value = v);
+                TrySet("pmcMaxGroupSize", (int v) => pmcMaxGroupSize.Value = v);
+                TrySet("pmcWaveQuantity", (double v) => pmcWaveQuantity.Value = v);
+                TrySet("pmcWaveDistribution", (double v) => pmcWaveDistribution.Value = v);
             }
             catch (Exception ex)
             {
-                Log.LogError($"[ApplyPresetSettings] Failed: {ex.Message}");
+                Log.LogError($"[ApplyPresetSettings] Failed to apply preset: {ex.Message}");
             }
         }
 
@@ -204,7 +205,9 @@ namespace MOAR.Helpers
 
         public static void AnnounceManually()
         {
-            if (IsFika) return;
+            if (IsFika && FikaBackendUtils.IsHeadless)
+                return;
+
             var selected = PresetList.FirstOrDefault(p => p.Name == currentPreset.Value);
             if (selected != null)
                 Methods.DisplayMessage($"Current preset: {selected.Label}", ENotificationIconType.Quest);
