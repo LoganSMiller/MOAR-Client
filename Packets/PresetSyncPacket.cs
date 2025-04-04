@@ -3,57 +3,37 @@
 namespace MOAR.Networking
 {
     /// <summary>
-    /// Represents a FIKA network packet for syncing preset state across Coop, server, and headless clients.
+    /// Sync packet sent from server to clients to broadcast the active MOAR preset.
+    /// Implements INetSerializable for FIKA Coop support.
     /// </summary>
-    public class PresetSyncPacket : INetSerializable
+    public struct PresetSyncPacket : INetSerializable
     {
-        /// <summary>
-        /// Internal identifier of the preset (used in config and routing).
-        /// </summary>
-        public string PresetName { get; private set; } = "live-like";
+        public string Version;
+        public string PresetName;
+        public string PresetLabel;
 
-        /// <summary>
-        /// Friendly display label used for UI and logging.
-        /// </summary>
-        public string PresetLabel { get; private set; } = "Live Preset";
+        // Static version constant for validation (optional)
+        public static readonly string CurrentVersion = "1.0.0"; // Match this to your MOAR version
 
-        /// <summary>
-        /// Parameterless constructor for network deserialization.
-        /// </summary>
-        public PresetSyncPacket() { }
-
-        /// <summary>
-        /// Constructs a packet with specified preset name and optional label.
-        /// </summary>
-        /// <param name="name">Unique config-safe preset name.</param>
-        /// <param name="label">Optional UI label. Falls back to <paramref name="name"/>.</param>
-        public PresetSyncPacket(string name, string label)
+        public PresetSyncPacket(string presetName, string presetLabel)
         {
-            PresetName = string.IsNullOrWhiteSpace(name) ? "live-like" : name.Trim();
-            PresetLabel = string.IsNullOrWhiteSpace(label) ? PresetName : label.Trim();
+            Version = CurrentVersion;
+            PresetName = presetName;
+            PresetLabel = presetLabel;
         }
 
-        /// <summary>
-        /// Serializes the packet data to a binary network stream.
-        /// </summary>
-        public void Serialize(NetDataWriter writer)
-        {
-            writer.Put(PresetName ?? "live-like");
-            writer.Put(PresetLabel ?? PresetName ?? "Live Preset");
-        }
-
-        /// <summary>
-        /// Deserializes the packet data from a binary network stream.
-        /// </summary>
         public void Deserialize(NetDataReader reader)
         {
-            PresetName = reader.GetString()?.Trim() ?? "live-like";
-            PresetLabel = reader.GetString()?.Trim() ?? PresetName;
+            Version = reader.GetString();
+            PresetName = reader.GetString();
+            PresetLabel = reader.GetString();
         }
 
-        /// <summary>
-        /// Returns a readable debug representation of the packet.
-        /// </summary>
-        public override string ToString() => $"{PresetLabel} ({PresetName})";
+        public void Serialize(NetDataWriter writer)
+        {
+            writer.Put(Version);
+            writer.Put(PresetName);
+            writer.Put(PresetLabel);
+        }
     }
 }

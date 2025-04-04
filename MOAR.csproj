@@ -124,8 +124,8 @@
     <Compile Include="Helpers\UIUtils.cs" />
     <Compile Include="Data\Ixyz.cs" />
     <Compile Include="Helpers\Preset.cs" />
-    <Compile Include="Networking\MOARCoopPacketRouter.cs" />
     <Compile Include="Networking\MOARPresetSyncHandler.cs" />
+    <Compile Include="Networking\MOARSync.cs" />
     <Compile Include="Packets\PresetSyncPacket.cs" />
     <Compile Include="Patches\AddEnemyPatch.cs" />
     <Compile Include="Patches\BotZoneDumper.cs" />

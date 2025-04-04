@@ -13,12 +13,15 @@ namespace MOAR.Packets
         /// The internal name or label of the preset to activate.
         /// Must match a preset defined in the server configuration.
         /// </summary>
-        public string Preset { get; set; } = string.Empty;
+        public string Preset { get; set; }
 
         /// <summary>
         /// Parameterless constructor for JSON deserialization.
         /// </summary>
-        public SetPresetRequest() { }
+        public SetPresetRequest()
+        {
+            Preset = string.Empty;
+        }
 
         /// <summary>
         /// Constructs a new request with the specified preset name or label.
@@ -26,12 +29,17 @@ namespace MOAR.Packets
         /// <param name="preset">The name or label of the preset to activate.</param>
         public SetPresetRequest(string preset)
         {
-            Preset = string.IsNullOrWhiteSpace(preset) ? string.Empty : preset.Trim();
+            Preset = string.IsNullOrWhiteSpace(preset)
+                ? string.Empty
+                : preset.Trim();
         }
 
         /// <summary>
         /// Returns a debug-friendly string representation.
         /// </summary>
-        public override string ToString() => $"Preset = \"{Preset}\"";
+        public override string ToString()
+        {
+            return $"Preset = \"{Preset}\"";
+        }
     }
 }

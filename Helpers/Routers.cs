@@ -61,7 +61,7 @@ namespace MOAR.Helpers
                 {
                     networkManager.RegisterPacket<PresetSyncPacket>(packet =>
                     {
-                        if (packet != null && !string.IsNullOrWhiteSpace(packet.PresetName))
+                        if (!string.IsNullOrWhiteSpace(packet.PresetName))
                         {
                             HandleFikaPresetSync(packet.PresetLabel, packet.PresetName);
                         }

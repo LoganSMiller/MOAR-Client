@@ -8,7 +8,11 @@ using EFT;
 using EFT.Communications;
 using Fika.Core;
 using Fika.Core.Coop.Utils;
+using Fika.Core.Modding;
+using Fika.Core.Modding.Events;
+using Fika.Core.Networking;
 using HarmonyLib;
+using LiteNetLib;
 using MOAR.Components.Notifications;
 using MOAR.Helpers;
 using MOAR.Networking;
@@ -50,6 +54,7 @@ namespace MOAR
                 if (Settings.IsFika)
                 {
                     DebugNotification.RegisterNetworkHandler();
+                    MOARSync.RegisterFikaEventListeners();
                 }
 
                 Logger.LogInfo("[MOAR] Initialization complete.");
@@ -65,18 +70,6 @@ namespace MOAR
             try
             {
                 EnablePatches();
-
-                
-                MOARCoopPacketRouter.TryRegister();
-
-                if (Settings.IsFika && FikaBackendUtils.IsServer)
-                {
-                    BroadcastPresetToClients(
-                        Settings.currentPreset?.Value ?? "live-like",
-                        Routers.GetAnnouncePresetLabel()
-                    );
-                }
-
                 Logger.LogInfo("[MOAR] Start complete.");
             }
             catch (Exception ex)
@@ -148,36 +141,6 @@ namespace MOAR
             if (Settings.IsFika && FikaBackendUtils.IsServer)
                 notification.BroadcastToClients();
         }
-
-        private static void BroadcastPresetToClients(string presetName, string presetLabel)
-        {
-            // Only run on FIKA-enabled dedicated host (not clients or offline)
-            if (!Settings.IsFika || !FikaBackendUtils.IsServer)
-                return;
-
-            try
-            {
-                // Construct and locally apply the sync packet
-                var packet = new PresetSyncPacket(presetName, presetLabel);
-                MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet); // Apply locally for logs
-
-                // Broadcast using a known good method
-                var notification = new DebugNotification
-                {
-                    Notification = $"Preset synced from host: {presetLabel}",
-                    NotificationIcon = ENotificationIconType.EntryPoint
-                };
-
-                notification.BroadcastToClients(); // Relies on FIKA internal routing (safe and tested)
-                Plugin.LogSource.LogInfo($"[MOAR] Broadcasted preset sync to clients: {presetLabel} ({presetName})");
-            }
-            catch (Exception ex)
-            {
-                Plugin.LogSource.LogError($"[MOAR] BroadcastPresetToClients failed: {ex.Message}");
-            }
-        }
-
-
 
         private static void EnablePatches()
         {
