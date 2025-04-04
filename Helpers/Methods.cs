@@ -83,23 +83,30 @@ namespace MOAR.Helpers
             {
                 var player = Singleton<GameWorld>.Instance?.MainPlayer;
 
-            if (player == null)
-            {
-                Plugin.LogSource.LogWarning("[GetPlayersCoordinatesAndLevel] MainPlayer is null");
-                return new AddSpawnRequest { map = "Unknown", position = new Ixyz() };
-            }
-
-            Vector3 pos = player.Position;
-            return new AddSpawnRequest
-            {
-                map = player.Location ?? "Unknown",
-                position = new Ixyz
+                if (player == null)
                 {
-                    x = pos.x,
-                    y = pos.y,
-                    z = pos.z
+                    Plugin.LogSource.LogWarning("[GetPlayersCoordinatesAndLevel] MainPlayer is null");
+                    return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
                 }
-            };
+
+                Vector3 pos = player.Position;
+
+                return new AddSpawnRequest
+                {
+                    Map = player.Location ?? "Unknown",
+                    Position = new Ixyz
+                    {
+                        X = pos.x,
+                        Y = pos.y,
+                        Z = pos.z
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Error: {ex.Message}");
+                return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
+            }
         }
 
         /// <summary>

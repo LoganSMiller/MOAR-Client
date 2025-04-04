@@ -27,25 +27,28 @@ namespace MOAR.Patches
                 ?? zones[UnityEngine.Random.Range(0, zones.Count)];
         }
 
-        private static bool IsSnipeZoneName(string name)
-        {
-            return !string.IsNullOrEmpty(name) && name.ToLowerInvariant().Contains("custom_snipe");
-        }
+        /// <summary>
+        /// Returns true if the zone name suggests a sniper zone.
+        /// </summary>
+        private static bool IsSnipeZoneName(string name) =>
+            !string.IsNullOrEmpty(name) && name.ToLowerInvariant().Contains("custom_snipe");
 
         /// <summary>
         /// Finds the bot zone name for a given spawn point ID.
         /// </summary>
         private static string GetBotZoneNameById(SpawnPointParams[] spawnPoints, string id)
         {
-            for (int i = 0; i < spawnPoints.Length; i++)
+            foreach (var point in spawnPoints)
             {
-                if (spawnPoints[i].Id == id)
-                    return spawnPoints[i].BotZoneName;
+                if (point.Id == id)
+                    return point.BotZoneName;
             }
             return string.Empty;
         }
 
-        // Replacing foreach with a for loop to modify the array elements
+        /// <summary>
+        /// Reassigns the bot zone name of a specific spawn point.
+        /// </summary>
         private static void SetBotZoneName(SpawnPointParams[] spawnPoints, string id, string newName)
         {
             for (int i = 0; i < spawnPoints.Length; i++)
@@ -59,7 +62,6 @@ namespace MOAR.Patches
                 }
             }
         }
-
 
         /// <summary>
         /// Postfix that reassigns sniper points to valid BotZones after spawn points are built.
@@ -105,16 +107,16 @@ namespace MOAR.Patches
 
                 string zoneName = GetBotZoneNameById(parameters, marker.Id);
 
-                // Regular spawn
                 if (!snipeZones.Any(z => z.NameZone == zoneName) && !IsSnipeZoneName(zoneName))
                 {
+                    // Fallback to regular zone
                     var fallback = GetNearestZone(regularZones, zoneName);
                     AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallback, -1);
                     marker.BotZone = fallback;
                 }
-                // Sniper spawn
                 else
                 {
+                    // Assign to sniper zone
                     if (IsSnipeZoneName(zoneName))
                         SetBotZoneName(parameters, marker.Id, string.Empty);
 

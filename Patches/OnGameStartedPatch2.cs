@@ -20,7 +20,7 @@ namespace MOAR.Patches
             AccessTools.Method(typeof(BotZone), nameof(BotZone.Awake));
 
         /// <summary>
-        /// Postfix logic that adds BotZoneRenderer if not already present.
+        /// Adds a BotZoneRenderer component to the BotZone if not already present.
         /// </summary>
         [PatchPostfix]
         [HarmonyPriority(Priority.Last)]

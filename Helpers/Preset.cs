@@ -10,12 +10,12 @@ namespace MOAR.Helpers
         /// <summary>
         /// The internal identifier for the preset (used for storage, config selection).
         /// </summary>
-        public string Name { get; set; } = string.Empty;
+        public string Name { get; set; } = "Unnamed";
 
         /// <summary>
         /// The display label shown to users in the UI. Falls back to Name if not specified.
         /// </summary>
-        public string Label { get; set; } = string.Empty;
+        public string Label { get; set; } = "Unnamed";
 
         /// <summary>
         /// The optional configuration payload for this preset.
@@ -26,17 +26,15 @@ namespace MOAR.Helpers
         /// <summary>
         /// Parameterless constructor for deserialization.
         /// </summary>
-        public Preset()
-        {
-            Name = "Unnamed";
-            Label = "Unnamed";
-            Settings = new object();
-        }
+        public Preset() { }
 
         /// <summary>
         /// Creates a new preset with a name, label, and custom settings payload.
         /// </summary>
-        public Preset(string name, string label, object settings)
+        /// <param name="name">The internal name identifier.</param>
+        /// <param name="label">The display label. Falls back to <paramref name="name"/> if null or empty.</param>
+        /// <param name="settings">The settings object associated with this preset.</param>
+        public Preset(string name, string? label, object? settings)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentNullException(nameof(name), "Preset name cannot be null or empty.");
@@ -49,6 +47,6 @@ namespace MOAR.Helpers
         /// <summary>
         /// Returns the label or fallback name for debug, logging, or UI.
         /// </summary>
-        public override string ToString() => Label ?? Name ?? "Unnamed Preset";
+        public override string ToString() => !string.IsNullOrWhiteSpace(Label) ? Label : Name;
     }
 }

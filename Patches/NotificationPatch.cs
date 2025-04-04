@@ -9,7 +9,8 @@ using SPT.Reflection.Patching;
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Displays the current preset with a random flair message on raid start.
+    /// Displays the current MOAR preset with a randomized flair message when a raid starts.
+    /// Prevents duplicate announcements when using FIKA Coop.
     /// </summary>
     public sealed class NotificationPatch : ModulePatch
     {
@@ -20,27 +21,22 @@ namespace MOAR.Patches
             AccessTools.Method(typeof(GameWorld), nameof(GameWorld.OnGameStarted));
 
         /// <summary>
-        /// Shows a preset notification if enabled in settings.
+        /// Prefix logic to announce preset with flair if enabled and not in FIKA multiplayer.
         /// </summary>
         [PatchPrefix]
         private static void Prefix()
         {
-            // Skip notification if toggled off
             if (!Settings.ShowPresetOnRaidStart.Value)
                 return;
 
-            // Don't double-announce in FIKA since host will handle the message
+            // Skip FIKA to avoid duplication — host handles it
             if (Settings.IsFika)
                 return;
 
-            // Get current preset label
-            var selected = Settings.PresetList
-                .FirstOrDefault(p => p.Name == Settings.currentPreset.Value);
-
+            var selected = Settings.PresetList.FirstOrDefault(p => p.Name == Settings.currentPreset.Value);
             var label = selected?.Label ?? Settings.currentPreset.Value ?? "Unknown";
             var flair = Plugin.GetFlairMessage();
 
-            // Display notification
             Methods.DisplayMessage($"Current preset is {label}{flair}", ENotificationIconType.EntryPoint);
         }
     }

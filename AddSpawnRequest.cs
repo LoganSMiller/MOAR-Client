@@ -14,14 +14,28 @@ namespace MOAR
         /// </summary>
         public string Map { get; set; }
 
+        /// <summary>
+        /// The spawn position (x, y, z) for the bot/player/sniper.
+        /// </summary>
+        public Ixyz Position { get; set; }
+
+        /// <summary>
+        /// Default constructor for deserialization.
+        /// </summary>
         public AddSpawnRequest() { }
 
+        /// <summary>
+        /// Constructs a new AddSpawnRequest with the specified map and position.
+        /// </summary>
         public AddSpawnRequest(string map, Ixyz position)
         {
-            this.map = map;
-            this.position = position;
+            Map = map ?? "Unknown";
+            Position = position ?? new Ixyz();
         }
 
-        public override string ToString() => $"Map: {map}, Position: {position}";
+        /// <summary>
+        /// Returns a readable string representation of the request.
+        /// </summary>
+        public override string ToString() => $"Map: {Map}, Position: {Position}";
     }
 }

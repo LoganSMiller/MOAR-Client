@@ -9,14 +9,15 @@ using EFT.Communications;
 using HarmonyLib;
 using LiteNetLib;
 using LiteNetLib.Utils;
-using MOAR.Helpers;
-using MOAR.Patches;
 using MOAR.Components.Notifications;
+using MOAR.Helpers;
 using MOAR.Networking;
+using MOAR.Patches;
 using Fika.Core.Networking;
-using Fika.Core.Coop.Utils;
 using Fika.Core.Coop;
+using Fika.Core.Coop.Utils;
 using Fika.Core.Coop.GameMode;
+using MOAR.Packets;
 
 namespace MOAR
 {
@@ -24,10 +25,11 @@ namespace MOAR
     [BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
+        public static Plugin Instance { get; private set; }
         public static ManualLogSource LogSource;
         private static readonly Random _rng = new();
-
         private static string _hostPresetLabel = "Unknown";
+        private static bool _initialized = false;
 
         private void Awake()
         {
@@ -50,27 +52,34 @@ namespace MOAR
 
                 new Harmony("com.moar.patches").PatchAll();
 
-            if (Settings.IsFika && Singleton<FikaServer>.Instantiated && Singleton<FikaClient>.Instantiated)
-            {
-                DebugNotification.RegisterNetworkHandler();
+                if (Settings.IsFika && Singleton<FikaServer>.Instantiated && Singleton<FikaClient>.Instantiated)
+                {
+                    DebugNotification.RegisterNetworkHandler();
 
-                // Correct packet registration using IFikaNetworkManager interface
-                var networkManager = Singleton<IFikaNetworkManager>.Instance;
-                if (networkManager != null)
-                {
-                    networkManager.RegisterPacket<PresetSyncPacket>(packet => OnClientReceivedPresetPacket(packet));
+                    var networkManager = Singleton<IFikaNetworkManager>.Instance;
+                    if (networkManager != null)
+                    {
+                        networkManager.RegisterPacket<PresetSyncPacket>(OnClientReceivedPresetPacket);
+                        Logger.LogInfo("[MOAR] PresetSyncPacket handler registered.");
+                    }
+                    else
+                    {
+                        LogSource.LogError("[MOAR] FIKA NetworkManager not available for packet registration.");
+                    }
                 }
-                else
+                else if (Settings.IsFika)
                 {
-                    LogSource.LogError("FIKA NetworkManager not available for packet registration.");
+                    LogSource.LogError("[MOAR] FIKA detected but networking components unavailable.");
                 }
             }
-            else if (Settings.IsFika)
+            catch (Exception ex)
             {
-                LogSource.LogError("FIKA detected but networking components unavailable.");
+                Logger.LogError($"[MOAR] Initialization failed: {ex}");
             }
         }
 
+        private void Start()
+        {
             try
             {
                 EnablePatches();
@@ -90,18 +99,13 @@ namespace MOAR
 
         private void Update()
         {
-            new SniperPatch().Enable();
-            new AddEnemyPatch().Enable();
-            new NotificationPatch().Enable();
-
-            if (Settings.enablePointOverlay.Value)
-                new OnGameStartedPatch().Enable();
+            HandleInput();
         }
 
         private static void HandleInput()
         {
             if (Settings.IsFika)
-                MOARCoopPacketRouter.TryRegister(); // ✅ Retry packet registration until it succeeds
+                MOARCoopPacketRouter.TryRegister(); // ✅ Retry packet registration if needed
 
             if (TryPress(Settings.DeleteBotSpawn.Value))
                 AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
@@ -117,22 +121,19 @@ namespace MOAR
 
             if (Settings.AnnounceKey.Value.BetterIsDown())
             {
-                var presetName = Settings.IsFika ? _hostPresetLabel : Routers.GetAnnouncePresetName();
-                var notification = new DebugNotification
-                {
-                    Notification = $"Current preset is {presetName}",
-                    NotificationIcon = ENotificationIconType.EntryPoint
-                };
-                notification.Display();
-
-                if (Settings.IsFika && FikaBackendUtils.IsServer)
-                    notification.BroadcastToClients();
+                AnnouncePresetManually();
             }
+        }
+
+        private static bool TryPress(KeyboardShortcut shortcut)
+        {
+            return shortcut.BetterIsDown() && Singleton<GameWorld>.Instance?.MainPlayer != null;
         }
 
         private static void AnnouncePresetManually(string location = "Unknown")
         {
             var presetName = Settings.IsFika ? _hostPresetLabel : Routers.GetAnnouncePresetName();
+
             var notification = new DebugNotification
             {
                 Notification = $"Current preset is {presetName}",
@@ -140,6 +141,24 @@ namespace MOAR
             };
 
             notification.Display();
+
+            if (Settings.IsFika && FikaBackendUtils.IsServer)
+                notification.BroadcastToClients();
+        }
+
+        private static void AnnounceResult(string result, string fallbackMessage)
+        {
+            var location = Singleton<GameWorld>.Instance?.MainPlayer?.Location ?? "Unknown";
+            var message = string.IsNullOrWhiteSpace(result) ? fallbackMessage : result;
+
+            var notification = new DebugNotification
+            {
+                Notification = $"{message} in {location}",
+                NotificationIcon = ENotificationIconType.Default
+            };
+
+            notification.Display();
+
             if (Settings.IsFika && FikaBackendUtils.IsServer)
                 notification.BroadcastToClients();
         }
@@ -160,9 +179,19 @@ namespace MOAR
                 Notification = $"Preset synced from host: {_hostPresetLabel}",
                 NotificationIcon = ENotificationIconType.EntryPoint
             };
-            notification.Display();
 
+            notification.Display();
             LogSource.LogInfo($"Preset synced from host: {_hostPresetLabel}");
+        }
+
+        private static void EnablePatches()
+        {
+            new SniperPatch().Enable();
+            new AddEnemyPatch().Enable();
+            new NotificationPatch().Enable();
+
+            if (Settings.enablePointOverlay.Value)
+                new OnGameStartedPatch().Enable();
         }
 
         public static string GetFlairMessage()

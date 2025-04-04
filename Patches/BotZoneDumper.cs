@@ -1,13 +1,14 @@
 ﻿using System.Reflection;
 using EFT.Game.Spawning;
 using HarmonyLib;
+using MOAR.Helpers;
 using SPT.Reflection.Patching;
-using MOAR.Helpers; 
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Logs all BotZones on map load. Useful for debugging spawn zones.
+    /// Dumps all BotZone data to the log when a map loads.
+    /// Useful for debugging spawn zone IDs and placement.
     /// </summary>
     public class BotZoneDumper : ModulePatch
     {
@@ -18,18 +19,25 @@ namespace MOAR.Patches
         private static void Postfix(LocationScene __instance)
         {
             if (!Settings.debug.Value)
-                return;
-
-            if (__instance?.BotZones == null || __instance.BotZones.Length == 0)
+            {
+                Plugin.LogSource.LogDebug("[BotZoneDumper] Skipped zone dump (debug disabled).");
                 return;
             }
 
-            if (!Settings.debug.Value)
+            if (__instance?.BotZones == null || __instance.BotZones.Length == 0)
+            {
+                Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in current LocationScene.");
                 return;
+            }
+
+            Plugin.LogSource.LogInfo($"[BotZoneDumper] Dumping {__instance.BotZones.Length} BotZones...");
 
             foreach (var botZone in __instance.BotZones)
             {
-                Plugin.LogSource.LogInfo($"[BotZoneDumper] BotZone name: {botZone.NameZone}, ID: {botZone.Id}");
+                if (botZone == null) continue;
+
+                string zoneName = !string.IsNullOrWhiteSpace(botZone.NameZone) ? botZone.NameZone : "Unnamed";
+                Plugin.LogSource.LogInfo($"[BotZoneDumper] BotZone: '{zoneName}' | ID: {botZone.Id}");
             }
         }
     }

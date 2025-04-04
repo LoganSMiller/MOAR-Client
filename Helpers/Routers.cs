@@ -7,9 +7,9 @@ using SPT.Common.Http;
 using MOAR.Helpers;
 using MOAR.Packets;
 using EFT;
+using Comfort.Common;
 using Fika.Core.Networking;
 using Fika.Core.Coop.Components;
-using Comfort.Common;
 
 namespace MOAR.Helpers
 {
@@ -18,7 +18,41 @@ namespace MOAR.Helpers
     /// </summary>
     internal static class Routers
     {
-        public static void Init(ConfigFile config) { }
+        private static string _hostPresetLabel = "Unknown";
+        private static bool _initialized;
+
+        /// <summary>
+        /// Initializes networking hooks and registers packet sync listeners.
+        /// </summary>
+        public static void Init(ConfigFile config)
+        {
+            if (_initialized)
+            {
+                Plugin.LogSource.LogDebug("[Routers] Init skipped: already initialized.");
+                return;
+            }
+
+            _initialized = true;
+
+            if (Settings.IsFika && Singleton<FikaClient>.Instantiated)
+            {
+                if (Singleton<FikaClient>.Instance is IFikaNetworkManager manager)
+                {
+                    manager.RegisterPacket<PresetSyncPacket>(packet =>
+                    {
+                        HandleFikaPresetSync(packet.PresetLabel, packet.PresetName);
+                    });
+
+                    Plugin.LogSource.LogInfo("[FIKA Sync] PresetSyncPacket handler registered.");
+                }
+                else
+                {
+                    Plugin.LogSource.LogWarning("[FIKA Sync] FikaClient.Instance is not IFikaNetworkManager.");
+                }
+            }
+
+            Plugin.LogSource.LogInfo("[Routers] Initialization complete.");
+        }
 
         // ─────────────────────────────────────────────────────────────
         // ─── PRESET ACCESSORS ────────────────────────────────────────
@@ -57,10 +91,7 @@ namespace MOAR.Helpers
             return preset?.Name ?? label ?? "Unknown";
         }
 
-        public static string GetAnnouncePresetName()
-        {
-            return _hostPresetLabel; // <-- Use stored label instead of resolving it again
-        }
+        public static string GetAnnouncePresetName() => _hostPresetLabel;
 
         public static void SetHostPresetLabel(string label)
         {
@@ -173,7 +204,9 @@ namespace MOAR.Helpers
             }
         }
 
-        // --- FIKA Sync Debug ---
+        // ─────────────────────────────────────────────────────────────
+        // ─── FIKA HANDSHAKE LOGIC ────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
 
         public static void HandleFikaPresetSync(string presetLabel, string presetName)
         {
@@ -186,7 +219,7 @@ namespace MOAR.Helpers
             if (match != null)
             {
                 Settings.currentPreset.Value = match.Name;
-                _hostPresetLabel = match.Label; // <-- Update stored label here
+                _hostPresetLabel = match.Label;
                 Plugin.LogSource.LogInfo($"[FIKA Sync] Applied synced preset: {match.Label} ({match.Name})");
             }
             else

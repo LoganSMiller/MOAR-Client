@@ -12,6 +12,8 @@ namespace MOAR.Helpers
 {
     internal static class Settings
     {
+        private static ConfigFile _config;
+
         public static ConfigEntry<bool> ShowPresetOnRaidStart;
         public static ConfigEntry<KeyboardShortcut> AnnounceKey;
         public static ConfigEntry<string> currentPreset;
@@ -73,6 +75,7 @@ namespace MOAR.Helpers
 
         public static void Init(ConfigFile config)
         {
+            _config = config;
             Log = Plugin.LogSource;
             IsFika = Chainloader.PluginInfos.ContainsKey("com.fika.core");
 
@@ -104,6 +107,9 @@ namespace MOAR.Helpers
             pmcDifficulty = config.Bind("1. Main Settings", "PMC Difficulty", ServerStoredDefaults.pmcDifficulty);
             scavDifficulty = config.Bind("1. Main Settings", "Scav Difficulty", ServerStoredDefaults.scavDifficulty);
 
+            maxBotCap = _config.Bind("2. Custom game Settings", "MaxBotCap", ServerStoredDefaults.maxBotCap);
+            maxBotPerZone = _config.Bind("2. Custom game Settings", "MaxBotPerZone", ServerStoredDefaults.maxBotPerZone);
+
             scavGroupChance = _config.Bind("2. Custom game Settings", "scavGroupChance Percentage", ServerStoredDefaults.scavGroupChance);
             pmcGroupChance = _config.Bind("2. Custom game Settings", "pmcGroupChance Percentage", ServerStoredDefaults.pmcGroupChance);
             sniperGroupChance = _config.Bind("2. Custom game Settings", "sniperGroupChance Percentage", ServerStoredDefaults.sniperGroupChance);
@@ -129,15 +135,13 @@ namespace MOAR.Helpers
             AddPlayerSpawn = _config.Bind("4. Advanced", "Add a player spawn", default(KeyboardShortcut));
             enablePointOverlay = _config.Bind("4. Advanced", "Spawnpoint overlay On/Off", false);
 
-            // Event handlers
             currentPreset.SettingChanged += (_, _) => OnPresetChange();
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
             randomSpawns.SettingChanged += (_, _) => OnStartingPmcsChanged();
             startingPmcs.SettingChanged += (_, _) => OnStartingPmcsChanged();
 
-            if (!IsFika && ShowPresetOnRaidStart.Value && livePreset != null)
-                Methods.DisplayMessage($"Live preset: {livePreset.Label}", ENotificationIconType.Quest);
-            }
+            if (!IsFika && ShowPresetOnRaidStart.Value && selectedPreset != null)
+                Methods.DisplayMessage($"Live preset: {selectedPreset.Label}", ENotificationIconType.Quest);
         }
 
         private static void OnPresetChange()
@@ -172,21 +176,22 @@ namespace MOAR.Helpers
                     }
                 }
 
-                TrySet<bool>("randomSpawns", (bool v) => randomSpawns.Value = v);
-                TrySet<bool>("spawnSmoothing", (bool v) => spawnSmoothing.Value = v);
-                TrySet<bool>("startingPmcs", (bool v) => startingPmcs.Value = v);
+                TrySet<bool>("randomSpawns", (v) => randomSpawns.Value = v);
+                TrySet<bool>("spawnSmoothing", (v) => spawnSmoothing.Value = v);
+                TrySet<bool>("startingPmcs", (v) => startingPmcs.Value = v);
 
-                TrySet<double>("scavGroupChance", (double v) => scavGroupChance.Value = v);
-                TrySet<int>("scavMaxGroupSize", (int v) => scavMaxGroupSize.Value = v);
-                TrySet<double>("pmcGroupChance", (double v) => pmcGroupChance.Value = v);
-                TrySet<int>("pmcMaxGroupSize", (int v) => pmcMaxGroupSize.Value = v);
+                TrySet<double>("scavGroupChance", (v) => scavGroupChance.Value = v);
+                TrySet<int>("scavMaxGroupSize", (v) => scavMaxGroupSize.Value = v);
+                TrySet<double>("pmcGroupChance", (v) => pmcGroupChance.Value = v);
+                TrySet<int>("pmcMaxGroupSize", (v) => pmcMaxGroupSize.Value = v);
+                TrySet<double>("pmcWaveQuantity", (v) => pmcWaveQuantity.Value = v);
+                TrySet<double>("pmcWaveDistribution", (v) => pmcWaveDistribution.Value = v);
             }
             catch (Exception ex)
             {
                 Log.LogError($"[ApplyPresetSettings] Failed: {ex.Message}");
             }
         }
-
 
         private static void OnStartingPmcsChanged()
         {
@@ -200,7 +205,7 @@ namespace MOAR.Helpers
         public static void AnnounceManually()
         {
             if (IsFika) return;
-            var selected = Settings.PresetList.FirstOrDefault(p => p.Name == currentPreset.Value);
+            var selected = PresetList.FirstOrDefault(p => p.Name == currentPreset.Value);
             if (selected != null)
                 Methods.DisplayMessage($"Current preset: {selected.Label}", ENotificationIconType.Quest);
             else
