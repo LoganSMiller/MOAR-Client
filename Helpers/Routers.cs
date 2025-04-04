@@ -18,6 +18,8 @@ namespace MOAR.Helpers
     /// </summary>
     internal static class Routers
     {
+        private static string _hostPresetLabel = "Unknown"; // <-- Added for label caching
+
         public static void Init(ConfigFile config)
         {
             // Ensure we have access to IFikaNetworkManager
@@ -81,9 +83,12 @@ namespace MOAR.Helpers
 
         public static string GetAnnouncePresetName()
         {
-            var label = GetAnnouncePresetLabel();
-            var preset = FindPresetByLabel(label);
-            return preset?.Name ?? label ?? "Unknown";
+            return _hostPresetLabel; // <-- Use stored label instead of resolving it again
+        }
+
+        public static void SetHostPresetLabel(string label)
+        {
+            _hostPresetLabel = label;
         }
 
         private static Preset FindPresetByLabel(string label)
@@ -200,6 +205,7 @@ namespace MOAR.Helpers
             if (match != null)
             {
                 Settings.currentPreset.Value = match.Name;
+                _hostPresetLabel = match.Label; // <-- Update stored label here
                 Plugin.LogSource.LogInfo($"[FIKA Sync] Applied synced preset: {match.Label} ({match.Name})");
             }
             else
