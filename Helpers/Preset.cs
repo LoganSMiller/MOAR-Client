@@ -4,50 +4,43 @@ namespace MOAR.Helpers
 {
     /// <summary>
     /// Represents a named configuration preset used to control spawn behavior and AI settings.
-    /// Presets contain a unique name, a display label, and optional serialized settings payload.
+    /// Presets contain a unique name, a display label, and serialized spawn/config settings.
     /// </summary>
     public class Preset
     {
         /// <summary>
-        /// Internal identifier used for referencing the preset (e.g. in configs or network sync).
+        /// Internal identifier used for referencing the preset (e.g., in configs or sync).
         /// </summary>
         public string Name { get; set; } = "Unnamed";
 
         /// <summary>
-        /// User-facing display label shown in UI and logs. Falls back to <see cref="Name"/> if null or empty.
+        /// Display label for UI/logs. Falls back to <see cref="Name"/> if not set.
         /// </summary>
         public string Label { get; set; } = "Unnamed";
 
         /// <summary>
-        /// Optional configuration payload for the preset.
-        /// Can be any serializable object (e.g. POCO, Dictionary, JSON).
+        /// Spawn configuration values associated with the preset.
         /// </summary>
-        public object Settings { get; set; } = new();
+        public ConfigSettings Settings { get; set; } = new ConfigSettings();
 
         /// <summary>
-        /// Default constructor for serialization and fallback.
+        /// Empty constructor for deserialization.
         /// </summary>
         public Preset() { }
 
         /// <summary>
-        /// Creates a new preset with the given name, label, and optional payload.
+        /// Creates a new preset instance.
         /// </summary>
-        /// <param name="name">Unique internal identifier (required).</param>
-        /// <param name="label">User-friendly label. Falls back to <paramref name="name"/> if null or empty.</param>
-        /// <param name="settings">Custom payload object (can be null).</param>
-        public Preset(string name, string? label, object? settings)
+        public Preset(string name, string? label, ConfigSettings? settings = null)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentNullException(nameof(name), "Preset name cannot be null or empty.");
 
             Name = name.Trim();
             Label = string.IsNullOrWhiteSpace(label) ? Name : label.Trim();
-            Settings = settings ?? new object();
+            Settings = settings ?? new ConfigSettings();
         }
 
-        /// <summary>
-        /// Returns the display label if set, otherwise falls back to the internal name.
-        /// </summary>
         public override string ToString() => string.IsNullOrWhiteSpace(Label) ? Name : Label;
     }
 }

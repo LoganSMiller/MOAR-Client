@@ -6,9 +6,8 @@ using BepInEx.Logging;
 using Comfort.Common;
 using EFT;
 using EFT.Communications;
-using Fika.Core.Coop.PacketHandlers;
-using Fika.Core.Coop.Utils;
 using Fika.Core;
+using Fika.Core.Coop.Utils;
 using HarmonyLib;
 using MOAR.Components.Notifications;
 using MOAR.Helpers;
@@ -39,7 +38,7 @@ namespace MOAR
             Instance = this;
             LogSource = Logger;
 
-            Logger.LogInfo("[MOAR] Awake - Starting initialization");
+            Logger.LogInfo("[MOAR] Awake — Starting initialization");
 
             try
             {
@@ -52,10 +51,12 @@ namespace MOAR
                 {
                     DebugNotification.RegisterNetworkHandler();
                 }
+
+                Logger.LogInfo("[MOAR] Initialization complete.");
             }
             catch (Exception ex)
             {
-                Logger.LogError($"[MOAR] Initialization error: {ex}");
+                Logger.LogError($"[MOAR] Initialization failed: {ex}");
             }
         }
 
@@ -65,10 +66,12 @@ namespace MOAR
             {
                 EnablePatches();
 
-                // Broadcast preset at raid start if this instance is headless/server
                 if (Settings.IsFika && FikaBackendUtils.IsServer)
                 {
-                    BroadcastPresetToClients(Settings.currentPreset.Value, Routers.GetAnnouncePresetName());
+                    BroadcastPresetToClients(
+                        Settings.currentPreset?.Value ?? "live-like",
+                        Routers.GetAnnouncePresetLabel()
+                    );
                 }
 
                 Logger.LogInfo("[MOAR] Start complete.");
@@ -86,11 +89,11 @@ namespace MOAR
 
         private static void HandleInput()
         {
-            // Retry-safe registration of packet handlers (if we're the server/headless)
-            if (Settings.IsFika)
-                MOARCoopPacketRouter.TryRegister();
+            if (!Settings.IsFika || !FikaBackendUtils.IsServer)
+                return;
 
-            // Dev tools
+            MOARCoopPacketRouter.TryRegister();
+
             if (TryPress(Settings.DeleteBotSpawn.Value))
                 AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
 
@@ -109,7 +112,7 @@ namespace MOAR
 
         private static bool TryPress(KeyboardShortcut shortcut)
         {
-            return shortcut.BetterIsDown() && Singleton<GameWorld>.Instance?.MainPlayer != null;
+            return shortcut.BetterIsDown() && Singleton<GameWorld>.Instantiated;
         }
 
         private static void AnnouncePresetManually()
@@ -152,18 +155,17 @@ namespace MOAR
 
             try
             {
-                // Use existing sync system
                 var packet = new PresetSyncPacket(presetName, presetLabel);
                 MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet); // Apply locally
 
-                // Use FIKA's registered routing logic to broadcast
-                DebugNotification notification = new DebugNotification
+                var notification = new DebugNotification
                 {
                     Notification = $"Preset synced from host: {presetLabel}",
                     NotificationIcon = ENotificationIconType.EntryPoint
                 };
 
-                notification.BroadcastToClients(); // Uses working wrapper
+                notification.BroadcastToClients();
+
                 LogSource.LogInfo($"[MOAR] Broadcasted preset sync: {presetLabel} ({presetName})");
             }
             catch (Exception ex)
@@ -188,7 +190,8 @@ namespace MOAR
             {
                 ", good luck!", ", may the bots ever be in your favour.", ", you're probably screwed.",
                 ", enjoy the dumpster fire.", ", hope you brought snacks.", ", prepare to be crushed.",
-                ", try not to rage-quit.", ", it's going to be a long day for you.", ", let the feelings of dread pass over you.",
+                ", try not to rage-quit.", ", it's going to be a long day for you.",
+                ", let the feelings of dread pass over you.",
             };
 
             return suffixes[_rng.Next(suffixes.Count)];

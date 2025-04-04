@@ -43,6 +43,8 @@ namespace MOAR.Helpers
 
         public static ConfigEntry<int> maxBotCap;
         public static ConfigEntry<int> maxBotPerZone;
+        public static ConfigEntry<int> spawnRadius;
+        public static ConfigEntry<int> spawnDelay;
 
         public static ConfigEntry<double> scavGroupChance;
         public static ConfigEntry<double> pmcGroupChance;
@@ -62,6 +64,8 @@ namespace MOAR.Helpers
         public static ConfigEntry<bool> bossInvasion;
         public static ConfigEntry<int> bossInvasionSpawnChance;
         public static ConfigEntry<bool> gradualBossInvasion;
+        public static ConfigEntry<bool> enableBossOverrides;
+        public static ConfigEntry<bool> forceHotzonesOnly;
 
         public static ConfigEntry<KeyboardShortcut> DeleteBotSpawn;
         public static ConfigEntry<KeyboardShortcut> AddBotSpawn;
@@ -111,6 +115,8 @@ namespace MOAR.Helpers
 
             maxBotCap = _config.Bind("2. Custom game Settings", "MaxBotCap", ServerStoredDefaults.maxBotCap);
             maxBotPerZone = _config.Bind("2. Custom game Settings", "MaxBotPerZone", ServerStoredDefaults.maxBotPerZone);
+            spawnRadius = _config.Bind("2. Custom game Settings", "SpawnRadius", ServerStoredDefaults.spawnRadius);
+            spawnDelay = _config.Bind("2. Custom game Settings", "SpawnDelay", ServerStoredDefaults.spawnDelay);
 
             scavGroupChance = _config.Bind("2. Custom game Settings", "scavGroupChance", ServerStoredDefaults.scavGroupChance);
             pmcGroupChance = _config.Bind("2. Custom game Settings", "pmcGroupChance", ServerStoredDefaults.pmcGroupChance);
@@ -129,13 +135,26 @@ namespace MOAR.Helpers
             pmcWaveQuantity = _config.Bind("2. Custom game Settings", "pmcWaveQuantity", ServerStoredDefaults.pmcWaveQuantity);
             pmcWaveDistribution = _config.Bind("2. Custom game Settings", "pmcWaveDistribution", ServerStoredDefaults.pmcWaveDistribution);
 
-            debug = _config.Bind("3.Debug", "Debug Mode", ServerStoredDefaults.debug);
+            bossOpenZones = _config.Bind("3. Bosses", "bossOpenZones", ServerStoredDefaults.bossOpenZones);
+            disableBosses = _config.Bind("3. Bosses", "disableBosses", ServerStoredDefaults.disableBosses);
+            mainBossChanceBuff = _config.Bind("3. Bosses", "mainBossChanceBuff", ServerStoredDefaults.mainBossChanceBuff);
+            bossInvasion = _config.Bind("3. Bosses", "bossInvasion", ServerStoredDefaults.bossInvasion);
+            bossInvasionSpawnChance = _config.Bind("3. Bosses", "bossInvasionSpawnChance", ServerStoredDefaults.bossInvasionSpawnChance);
+            gradualBossInvasion = _config.Bind("3. Bosses", "gradualBossInvasion", ServerStoredDefaults.gradualBossInvasion);
+            randomRaiderGroup = _config.Bind("3. Bosses", "randomRaiderGroup", ServerStoredDefaults.randomRaiderGroup);
+            randomRaiderGroupChance = _config.Bind("3. Bosses", "randomRaiderGroupChance", ServerStoredDefaults.randomRaiderGroupChance);
+            randomRogueGroup = _config.Bind("3. Bosses", "randomRogueGroup", ServerStoredDefaults.randomRogueGroup);
+            randomRogueGroupChance = _config.Bind("3. Bosses", "randomRogueGroupChance", ServerStoredDefaults.randomRogueGroupChance);
+            enableBossOverrides = _config.Bind("3. Bosses", "enableBossOverrides", ServerStoredDefaults.enableBossOverrides);
+            forceHotzonesOnly = _config.Bind("3. Bosses", "forceHotzonesOnly", ServerStoredDefaults.forceHotzonesOnly);
 
-            AddBotSpawn = _config.Bind("4. Advanced", "Add Bot Spawn", default(KeyboardShortcut));
-            AddSniperSpawn = _config.Bind("4. Advanced", "Add Sniper Spawn", default(KeyboardShortcut));
-            DeleteBotSpawn = _config.Bind("4. Advanced", "Delete Bot Spawn", default(KeyboardShortcut));
-            AddPlayerSpawn = _config.Bind("4. Advanced", "Add Player Spawn", default(KeyboardShortcut));
-            enablePointOverlay = _config.Bind("4. Advanced", "Enable Spawnpoint Overlay", false);
+            debug = _config.Bind("4. Debug", "Debug Mode", ServerStoredDefaults.debug);
+
+            AddBotSpawn = _config.Bind("5. Advanced", "Add Bot Spawn", default(KeyboardShortcut));
+            AddSniperSpawn = _config.Bind("5. Advanced", "Add Sniper Spawn", default(KeyboardShortcut));
+            DeleteBotSpawn = _config.Bind("5. Advanced", "Delete Bot Spawn", default(KeyboardShortcut));
+            AddPlayerSpawn = _config.Bind("5. Advanced", "Add Player Spawn", default(KeyboardShortcut));
+            enablePointOverlay = _config.Bind("5. Advanced", "Enable Spawnpoint Overlay", false);
 
             currentPreset.SettingChanged += (_, _) => OnPresetChange();
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
@@ -158,6 +177,15 @@ namespace MOAR.Helpers
             else
             {
                 Methods.DisplayMessage("Unknown preset selected", ENotificationIconType.Alert);
+            }
+        }
+
+        private static void OnStartingPmcsChanged()
+        {
+            if (startingPmcs.Value)
+            {
+                randomSpawns.Value = true;
+                spawnSmoothing.Value = false;
             }
         }
 
@@ -191,15 +219,6 @@ namespace MOAR.Helpers
             catch (Exception ex)
             {
                 Log.LogError($"[ApplyPresetSettings] Failed to apply preset: {ex.Message}");
-            }
-        }
-
-        private static void OnStartingPmcsChanged()
-        {
-            if (startingPmcs.Value)
-            {
-                randomSpawns.Value = true;
-                spawnSmoothing.Value = false;
             }
         }
 

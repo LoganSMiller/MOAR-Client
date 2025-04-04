@@ -21,8 +21,6 @@ namespace MOAR.Helpers
         /// Displays a client-side notification and optionally broadcasts to other players if in FIKA multiplayer.
         /// Safe for single-player, host, client, and headless environments.
         /// </summary>
-        /// <param name="message">The message text to display.</param>
-        /// <param name="icon">Optional notification icon (defaults to Quest icon).</param>
         public static void DisplayMessage(string message, ENotificationIconType icon = ENotificationIconType.Quest)
         {
             if (string.IsNullOrWhiteSpace(message))
@@ -41,7 +39,6 @@ namespace MOAR.Helpers
 
                 notification.Display();
 
-                // Optional network broadcast in FIKA Coop/Headless
                 if (Settings.IsFika)
                     notification.BroadcastToClients();
             }
@@ -60,7 +57,7 @@ namespace MOAR.Helpers
             {
                 if (PatchConstants.BackEndSession != null)
                 {
-                    await PatchConstants.BackEndSession.GetLevelSettings();
+                    await PatchConstants.BackEndSession.GetLevelSettings().ConfigureAwait(false);
                 }
                 else
                 {
@@ -81,7 +78,8 @@ namespace MOAR.Helpers
         {
             try
             {
-                var player = Singleton<GameWorld>.Instance?.MainPlayer;
+                var gameWorld = Singleton<GameWorld>.Instance;
+                var player = gameWorld?.MainPlayer;
 
                 if (player == null)
                 {
