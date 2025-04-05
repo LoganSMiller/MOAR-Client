@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
@@ -10,7 +11,6 @@ using Fika.Core;
 using Fika.Core.Coop.Utils;
 using Fika.Core.Modding;
 using Fika.Core.Modding.Events;
-using Fika.Core.Networking;
 using HarmonyLib;
 using LiteNetLib;
 using MOAR.Components.Notifications;
@@ -29,6 +29,7 @@ namespace MOAR
         public static ManualLogSource LogSource;
         private static readonly Random _rng = new();
         private static bool _initialized = false;
+        public static readonly string Version = "1.0.0"; // Used in PresetSyncPacket
 
         private void Awake()
         {
@@ -54,7 +55,7 @@ namespace MOAR
                 if (Settings.IsFika)
                 {
                     DebugNotification.RegisterNetworkHandler();
-                    MOARSync.RegisterFikaEventListeners();
+                    MOARSync.RegisterFikaEventListeners(); 
                 }
 
                 Logger.LogInfo("[MOAR] Initialization complete.");
@@ -70,12 +71,29 @@ namespace MOAR
             try
             {
                 EnablePatches();
+
+                if (Settings.IsFika && FikaBackendUtils.IsServer)
+                    StartCoroutine(WaitThenBroadcastPreset());
+
                 Logger.LogInfo("[MOAR] Start complete.");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"[MOAR] Start failed: {ex}");
             }
+        }
+
+        private IEnumerator WaitThenBroadcastPreset()
+        {
+            LogSource.LogInfo("[MOAR] Waiting for FIKA server to be ready...");
+
+            while (!Singleton<Fika.Core.Networking.FikaServer>.Instantiated)
+                yield return null;
+
+            BroadcastPresetToClients(
+                Settings.currentPreset?.Value ?? "live-like",
+                Routers.GetAnnouncePresetLabel()
+            );
         }
 
         private void Update()
@@ -140,6 +158,32 @@ namespace MOAR
 
             if (Settings.IsFika && FikaBackendUtils.IsServer)
                 notification.BroadcastToClients();
+        }
+
+        private static void BroadcastPresetToClients(string presetName, string presetLabel)
+        {
+            if (!Settings.IsFika || !FikaBackendUtils.IsServer)
+                return;
+
+            try
+            {
+                var packet = new PresetSyncPacket(presetName, presetLabel);
+                MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet); // Apply locally for logs
+
+                if (Singleton<Fika.Core.Networking.FikaServer>.Instantiated)
+                {
+                    Singleton<Fika.Core.Networking.FikaServer>.Instance.SendDataToAll(ref packet, DeliveryMethod.ReliableUnordered);
+                    LogSource.LogInfo($"[MOAR] Broadcasted preset sync to all peers: {presetLabel} ({presetName})");
+                }
+                else
+                {
+                    LogSource.LogWarning("[MOAR] FikaServer not instantiated; unable to broadcast.");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogSource.LogError($"[MOAR] BroadcastPresetToClients failed: {ex.Message}");
+            }
         }
 
         private static void EnablePatches()

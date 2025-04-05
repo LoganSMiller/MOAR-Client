@@ -8,9 +8,10 @@ namespace MOAR.Networking
     {
         public static void OnClientReceivedPresetPacket(PresetSyncPacket packet)
         {
+            // Basic sanity check (structs can't be null, so just check content)
             if (string.IsNullOrWhiteSpace(packet.PresetName))
             {
-                Plugin.LogSource.LogWarning("[MOARPresetSyncHandler] Received PresetSyncPacket with empty name.");
+                Plugin.LogSource.LogWarning("[MOARPresetSyncHandler] Received invalid or empty PresetSyncPacket.");
                 return;
             }
 
@@ -28,6 +29,12 @@ namespace MOAR.Networking
             {
                 Plugin.LogSource.LogWarning($"[MOAR] No matching preset found for: {packet.PresetLabel} / {packet.PresetName}");
             }
+        }
+
+        public static void ResetSync()
+        {
+            Plugin.LogSource.LogDebug("[MOARPresetSyncHandler] Resetting sync state.");
+            Routers.SetHostPresetLabel("Unknown");
         }
     }
 }
