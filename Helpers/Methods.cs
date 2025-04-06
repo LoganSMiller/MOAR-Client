@@ -8,7 +8,8 @@ using MOAR.Packets;
 using MOAR.Data;
 using SPT.Reflection.Utils;
 using UnityEngine;
-using MOAR.Components.Notifications; // ✅ This is the correct source
+using MOAR.Components.Notifications;
+using MOAR.Helpers;
 
 namespace MOAR.Helpers
 {
@@ -34,18 +35,22 @@ namespace MOAR.Helpers
             {
                 var notification = new DebugNotification
                 {
-                    Notification = message,
+                    Notification = message.Trim(),
                     NotificationIcon = icon
                 };
 
+                // Always show locally
                 notification.Display();
 
+                // If FIKA server or host, propagate to clients
                 if (Settings.IsFika && Fika.Core.Coop.Utils.FikaBackendUtils.IsServer)
+                {
                     notification.BroadcastToClients();
+                }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[DisplayMessage] Exception: {ex.Message}");
+                Plugin.LogSource.LogError($"[DisplayMessage] Exception: {ex}");
             }
         }
 
@@ -67,7 +72,7 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[RefreshLocationInfo] Failed to refresh: {ex.Message}");
+                Plugin.LogSource.LogError($"[RefreshLocationInfo] Failed to refresh: {ex}");
             }
         }
 
@@ -101,26 +106,27 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Exception: {ex.Message}");
+                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Exception: {ex}");
                 return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
             }
         }
 
         /// <summary>
         /// Checks for manual announce key and displays current preset if pressed.
+        /// Safe in any runtime state.
         /// </summary>
         public static void CheckAnnounceKey()
         {
             try
             {
-                if (Settings.AnnounceKey?.Value.BetterIsDown() == true)
+                if (MOAR.Helpers.ConfigEntryExtensions.BetterIsDown(Settings.AnnounceKey.Value))
                 {
                     Settings.AnnounceManually();
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[CheckAnnounceKey] Failed to announce: {ex.Message}");
+                Plugin.LogSource.LogError($"[CheckAnnounceKey] Failed to announce: {ex}");
             }
         }
     }

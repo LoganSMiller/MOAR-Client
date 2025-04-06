@@ -8,116 +8,116 @@ using Fika.Core.Coop;
 using LiteNetLib;
 using MOAR.Packets;
 
-namespace MOAR.Components.Notifications;
-
-/// <summary>
-/// A lightweight wrapper for displaying notifications locally and broadcasting via FIKA.
-/// </summary>
-public sealed class DebugNotification
+namespace MOAR.Components.Notifications
 {
-    public string Notification { get; set; } = string.Empty;
-    public ENotificationIconType NotificationIcon { get; set; } = ENotificationIconType.Default;
-
-    private static FikaServer? _server;
-    private static bool _registered = false;
-
     /// <summary>
-    /// Displays the notification locally on the current client.
+    /// Handles both local display and FIKA-based broadcast of debug notifications.
     /// </summary>
-    public void Display()
+    public sealed class DebugNotification
     {
-        if (string.IsNullOrWhiteSpace(Notification))
+        public string Notification { get; set; } = string.Empty;
+        public ENotificationIconType NotificationIcon { get; set; } = ENotificationIconType.Default;
+
+        private static FikaServer? _server;
+        private static bool _registered = false;
+
+        /// <summary>
+        /// Displays the message locally.
+        /// </summary>
+        public void Display()
         {
-            Plugin.LogSource.LogWarning("[DebugNotification] Tried to display empty notification.");
-            return;
+            if (string.IsNullOrWhiteSpace(Notification))
+            {
+                Plugin.LogSource.LogWarning("[DebugNotification] Tried to display an empty message.");
+                return;
+            }
+
+            NotificationManagerClass.DisplayMessageNotification(
+                Notification,
+                ENotificationDurationType.Default,
+                NotificationIcon
+            );
+
+            Plugin.LogSource.LogDebug($"[DebugNotification] Displayed locally: {Notification}");
         }
 
-        NotificationManagerClass.DisplayMessageNotification(
-            Notification,
-            ENotificationDurationType.Default,
-            NotificationIcon
-        );
-
-        Plugin.LogSource.LogDebug($"[DebugNotification] Displayed locally: {Notification}");
-    }
-
-    /// <summary>
-    /// Sends this notification to all clients if running as FIKA server.
-    /// </summary>
-    public void BroadcastToClients()
-    {
-        if (!Fika.Core.Coop.Utils.FikaBackendUtils.IsServer || _server == null)
+        /// <summary>
+        /// Broadcasts the notification to all FIKA clients if on the server.
+        /// </summary>
+        public void BroadcastToClients()
         {
-            Plugin.LogSource.LogWarning("[DebugNotification] Broadcast skipped — not server or no server ref.");
-            return;
+            if (!Fika.Core.Coop.Utils.FikaBackendUtils.IsServer || _server == null)
+            {
+                Plugin.LogSource.LogDebug("[DebugNotification] Skipped broadcast — not server or server ref missing.");
+                return;
+            }
+
+            try
+            {
+                var packet = BuildPacket();
+                _server.SendDataToAll(ref packet, DeliveryMethod.ReliableUnordered);
+                Plugin.LogSource.LogDebug($"[DebugNotification] Broadcasted to all clients: {Notification}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[DebugNotification] Broadcast failed: {ex.Message}");
+            }
         }
 
-        try
+        /// <summary>
+        /// Registers the network packet handler for DebugNotificationPacket.
+        /// </summary>
+        public static void RegisterNetworkHandler()
         {
-            var packet = BuildPacket();
+            if (_registered)
+            {
+                Plugin.LogSource.LogDebug("[DebugNotification] Already registered.");
+                return;
+            }
 
-            _server.SendDataToAll(ref packet, DeliveryMethod.ReliableUnordered);
-            Plugin.LogSource.LogDebug($"[DebugNotification] Broadcasted to clients: {Notification}");
-        }
-        catch (Exception ex)
-        {
-            Plugin.LogSource.LogError($"[DebugNotification] Failed to broadcast: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Registers the client handler for incoming DebugNotificationPackets.
-    /// </summary>
-    public static void RegisterNetworkHandler()
-    {
-        if (_registered)
-        {
-            Plugin.LogSource.LogWarning("[DebugNotification] Handler already registered — skipping.");
-            return;
+            FikaEventDispatcher.SubscribeEvent<FikaNetworkManagerCreatedEvent>(OnNetworkReady);
+            _registered = true;
+            Plugin.LogSource.LogInfo("[DebugNotification] Subscribed to FIKA network manager event.");
         }
 
-        FikaEventDispatcher.SubscribeEvent<FikaNetworkManagerCreatedEvent>(OnNetworkReady);
-        _registered = true;
-        Plugin.LogSource.LogInfo("[DebugNotification] Registered FIKA network event listener.");
-    }
-
-    private static void OnNetworkReady(FikaNetworkManagerCreatedEvent ev)
-    {
-        if (ev.Manager is FikaClient client)
+        private static void OnNetworkReady(FikaNetworkManagerCreatedEvent ev)
         {
-            client.RegisterPacket<DebugNotificationPacket>(HandleNotificationPacket);
-            Plugin.LogSource.LogInfo("[DebugNotification] Registered DebugNotificationPacket handler (client)");
-        }
-        else if (ev.Manager is FikaServer server)
-        {
-            _server = server;
-            Plugin.LogSource.LogInfo("[DebugNotification] Stored FikaServer reference");
-        }
-    }
-
-    private static void HandleNotificationPacket(DebugNotificationPacket packet)
-    {
-        if (string.IsNullOrWhiteSpace(packet.Message))
-        {
-            Plugin.LogSource.LogWarning("[DebugNotification] Received empty message — skipping.");
-            return;
+            if (ev.Manager is FikaClient client)
+            {
+                client.RegisterPacket<DebugNotificationPacket>(HandleNotificationPacket);
+                Plugin.LogSource.LogInfo("[DebugNotification] Registered client handler for DebugNotificationPacket.");
+            }
+            else if (ev.Manager is FikaServer server)
+            {
+                _server = server;
+                Plugin.LogSource.LogInfo("[DebugNotification] Server reference set.");
+            }
         }
 
-        NotificationManagerClass.DisplayMessageNotification(
-            packet.Message,
-            ENotificationDurationType.Default,
-            packet.Icon
-        );
-
-        Plugin.LogSource.LogDebug($"[DebugNotification] Displayed from host: {packet.Message}");
-    }
-
-    private DebugNotificationPacket BuildPacket()
-    {
-        return new DebugNotificationPacket
+        private static void HandleNotificationPacket(DebugNotificationPacket packet)
         {
-            Message = Notification?.Trim() ?? string.Empty,
-            Icon = NotificationIcon
-        };
+            if (string.IsNullOrWhiteSpace(packet.Message))
+            {
+                Plugin.LogSource.LogWarning("[DebugNotification] Received empty packet — skipping.");
+                return;
+            }
+
+            NotificationManagerClass.DisplayMessageNotification(
+                packet.Message,
+                ENotificationDurationType.Default,
+                packet.Icon
+            );
+
+            Plugin.LogSource.LogDebug($"[DebugNotification] Displayed remote message: {packet.Message}");
+        }
+
+        private DebugNotificationPacket BuildPacket()
+        {
+            return new DebugNotificationPacket
+            {
+                Message = Notification?.Trim() ?? string.Empty,
+                Icon = NotificationIcon
+            };
+        }
     }
 }

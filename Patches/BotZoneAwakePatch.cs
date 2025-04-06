@@ -1,64 +1,64 @@
 ﻿using System;
 using System.Reflection;
 using EFT.Game.Spawning;
+using Fika.Core.Coop.Utils;
 using HarmonyLib;
 using MOAR.Components;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
 using UnityEngine;
-using Fika.Core.Coop.Utils;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Ensures every BotZone has a BotZoneRenderer component when it awakens.
-    /// Used to render spawn zone outlines for debugging, even during headless sessions.
+    /// Ensures each BotZone attaches a BotZoneRenderer for visual debugging.
+    /// Skips execution in headless mode or when overlay is disabled.
     /// </summary>
     public class BotZoneAwakePatch : ModulePatch
     {
-        /// <summary>
-        /// Targets the BotZone.Awake method.
-        /// </summary>
         protected override MethodBase GetTargetMethod() =>
             AccessTools.Method(typeof(BotZone), nameof(BotZone.Awake));
 
-        /// <summary>
-        /// Postfix logic that attaches BotZoneRenderer to each BotZone if debugging is enabled.
-        /// </summary>
         [PatchPostfix]
         [HarmonyPriority(Priority.Last)]
         private static void Postfix(BotZone __instance)
         {
+            if (__instance?.gameObject == null)
+            {
+                Plugin.LogSource?.LogWarning("[BotZoneAwakePatch] BotZone or its GameObject is null — skipping.");
+                return;
+            }
+
+            if (FikaBackendUtils.IsHeadless)
+            {
+                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Skipped — FIKA headless mode active.");
+                return;
+            }
+
+            if (!Settings.enablePointOverlay.Value)
+            {
+                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Skipped — Point overlay disabled in config.");
+                return;
+            }
+
             try
             {
-                if (__instance == null || __instance.gameObject == null)
-                {
-                    Plugin.LogSource?.LogWarning("[BotZoneAwakePatch] BotZone or GameObject is null. Skipping.");
-                    return;
-                }
-
-                if (!Settings.enablePointOverlay.Value)
-                {
-                    Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Point overlay disabled. Skipping.");
-                    return;
-                }
-
                 string zoneName = "[Unknown]";
-                try { zoneName = __instance.NameZone; } catch { }
+                try { zoneName = __instance.NameZone ?? "[Unnamed]"; } catch { }
 
                 if (!__instance.TryGetComponent<BotZoneRenderer>(out _))
                 {
                     __instance.gameObject.AddComponent<BotZoneRenderer>();
-                    Plugin.LogSource?.LogInfo($"[BotZoneAwakePatch] Attached BotZoneRenderer to zone: '{zoneName}' (headless: {FikaBackendUtils.IsHeadless})");
+                    Plugin.LogSource?.LogInfo($"[BotZoneAwakePatch] Attached BotZoneRenderer to zone: \"{zoneName}\"");
                 }
                 else
                 {
-                    Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] BotZoneRenderer already exists on zone: '{zoneName}'");
+                    Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] BotZoneRenderer already exists on zone: \"{zoneName}\"");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource?.LogError($"[BotZoneAwakePatch] Exception during BotZoneRenderer attach: {ex}");
+                Plugin.LogSource?.LogError($"[BotZoneAwakePatch] Exception while attaching BotZoneRenderer: {ex}");
             }
         }
     }

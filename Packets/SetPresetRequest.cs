@@ -4,39 +4,35 @@ using Newtonsoft.Json;
 namespace MOAR.Packets
 {
     /// <summary>
-    /// Represents a request sent from the client to the server to change the active spawn preset.
-    /// Supports both internal names and human-readable labels.
+    /// Represents a request from a FIKA client to update the active spawn preset.
+    /// Accepts either the internal name or user-facing label of the preset.
     /// </summary>
     [Serializable]
     public sealed class SetPresetRequest
     {
         /// <summary>
-        /// The internal name or label of the preset to activate.
-        /// Must match a preset defined in the server configuration.
+        /// The name or label of the preset to apply.
+        /// This must match a server-side preset.
         /// </summary>
         [JsonProperty("preset")]
         public string Preset { get; set; } = string.Empty;
 
         /// <summary>
-        /// Parameterless constructor for JSON deserialization.
+        /// Parameterless constructor for deserialization.
         /// </summary>
         [JsonConstructor]
-        public SetPresetRequest()
-        {
-            Preset = string.Empty;
-        }
+        public SetPresetRequest() { }
 
         /// <summary>
-        /// Constructs a new request with the specified preset name or label.
+        /// Creates a new request using the specified preset name or label.
         /// </summary>
-        /// <param name="preset">The name or label of the preset to activate.</param>
         public SetPresetRequest(string? preset)
         {
             Preset = string.IsNullOrWhiteSpace(preset) ? string.Empty : preset.Trim();
         }
 
         /// <summary>
-        /// Normalizes the input for safe comparison or storage.
+        /// Trims and sanitizes the preset value.
         /// </summary>
         public void Normalize()
         {
@@ -44,11 +40,23 @@ namespace MOAR.Packets
         }
 
         /// <summary>
-        /// Returns a debug-friendly string representation.
+        /// Returns whether this request contains a valid, non-empty preset.
         /// </summary>
-        public override string ToString()
+        public bool IsValid() => !string.IsNullOrWhiteSpace(Preset);
+
+        /// <summary>
+        /// String representation used in debug logs or console output.
+        /// </summary>
+        public override string ToString() => $"SetPresetRequest: \"{Preset}\"";
+
+        /// <summary>
+        /// Equality helper for comparing requests (optional).
+        /// </summary>
+        public override bool Equals(object? obj)
         {
-            return $"Preset = \"{Preset ?? "null"}\"";
+            return obj is SetPresetRequest other && string.Equals(Preset, other.Preset, StringComparison.OrdinalIgnoreCase);
         }
+
+        public override int GetHashCode() => Preset?.ToLowerInvariant().GetHashCode() ?? 0;
     }
 }

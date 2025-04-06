@@ -10,7 +10,8 @@ using Fika.Core.Coop.Utils;
 namespace MOAR.Components
 {
     /// <summary>
-    /// Draws labels above spawn points in real-time for development/debug purposes.
+    /// Renders real-time labels above spawn points for dev/debug use.
+    /// Automatically disables in headless FIKA sessions.
     /// </summary>
     public class BotZoneRenderer : MonoBehaviour
     {
@@ -25,7 +26,7 @@ namespace MOAR.Components
         {
             if (Settings.IsFika && FikaBackendUtils.IsHeadless)
             {
-                Plugin.LogSource.LogInfo("[BotZoneRenderer] Skipping render setup (headless mode).");
+                Plugin.LogSource.LogInfo("[BotZoneRenderer] Skipped setup (headless mode).");
                 Destroy(this);
                 return;
             }
@@ -34,14 +35,14 @@ namespace MOAR.Components
             {
                 float output = CameraClass.Instance.SSAA.GetOutputWidth();
                 float input = CameraClass.Instance.SSAA.GetInputWidth();
-                if (input > 0) _screenScale = output / input;
+                if (input > 0f) _screenScale = output / input;
             }
 
             RefreshZones();
         }
 
         /// <summary>
-        /// Refresh the zones and spawn points to render them on the screen.
+        /// Rebuilds the zone and spawn point label data.
         /// </summary>
         public void RefreshZones()
         {
@@ -79,20 +80,24 @@ namespace MOAR.Components
 
             foreach (var info in _spawnPointInfos)
             {
-                if (string.IsNullOrEmpty(info.Content.text)) continue;
+                if (string.IsNullOrEmpty(info.Content.text))
+                    continue;
 
                 float distance = Vector3.Distance(info.Position, Player.Transform.position);
-                if (distance > 200f) continue;
+                if (distance > 200f)
+                    continue;
 
                 Vector3 screenPos = Camera.main.WorldToScreenPoint(info.Position + Vector3.up * 1.5f);
-                if (screenPos.z <= 0f) continue;
+                if (screenPos.z <= 0f)
+                    continue;
 
                 Vector2 size = _guiStyle.CalcSize(info.Content);
                 Rect labelRect = new(
                     screenPos.x * _screenScale - size.x / 2f,
                     Screen.height - (screenPos.y * _screenScale + size.y),
                     size.x,
-                    size.y);
+                    size.y
+                );
 
                 GUI.Box(labelRect, info.Content, _guiStyle);
             }
@@ -144,10 +149,7 @@ namespace MOAR.Components
             if (spawnPoint == null) return "NullPoint";
 
             var prop = spawnPoint.GetType().GetProperty("BotTemplateId");
-            if (prop?.GetValue(spawnPoint) is string id)
-                return id;
-
-            return spawnPoint.ToString();
+            return prop?.GetValue(spawnPoint) as string ?? spawnPoint.ToString();
         }
     }
 }

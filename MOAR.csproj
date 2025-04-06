@@ -124,11 +124,8 @@
     <Compile Include="Helpers\UIUtils.cs" />
     <Compile Include="Data\Ixyz.cs" />
     <Compile Include="Helpers\Preset.cs" />
-    <Compile Include="Networking\MOARPresetSyncHandler.cs" />
-    <Compile Include="Networking\MOARSync.cs" />
+    <Compile Include="Packets\ConfigPacket.cs" />
     <Compile Include="Packets\DebugNotificationPacket.cs" />
-    <Compile Include="Packets\PresetSyncPacket.cs" />
-    <Compile Include="Packets\RaidStartGuardPatch.cs" />
     <Compile Include="Patches\AddEnemyPatch.cs" />
     <Compile Include="Patches\BotZoneDumper.cs" />
     <Compile Include="Patches\NotificationPatch.cs" />

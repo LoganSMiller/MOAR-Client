@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Reflection;
 using EFT.Game.Spawning;
+using Fika.Core.Coop.Utils;
 using HarmonyLib;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
-using Fika.Core.Coop.Utils;
 using UnityEngine;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Dumps all BotZone data to the log when a map loads.
-    /// Useful for debugging spawn zone IDs and placement across all clients/hosts.
+    /// Dumps all BotZone data to the log during LocationScene.Awake.
+    /// Useful for spawn zone debugging across hosts, clients, and headless.
     /// </summary>
     public class BotZoneDumper : ModulePatch
     {
@@ -21,67 +21,60 @@ namespace MOAR.Patches
         [PatchPostfix]
         private static void Postfix(LocationScene __instance)
         {
+            if (!Settings.debug.Value)
+            {
+                Plugin.LogSource.LogDebug("[BotZoneDumper] Debug is disabled — skipping BotZone dump.");
+                return;
+            }
+
             try
             {
-                if (!Settings.debug.Value)
-                {
-                    Plugin.LogSource.LogDebug("[BotZoneDumper] Skipped zone dump (debug mode is off).");
-                    return;
-                }
-
                 if (__instance?.BotZones == null || __instance.BotZones.Length == 0)
                 {
-                    Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in LocationScene.");
+                    Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in scene.");
                     return;
                 }
 
-                string context = FikaBackendUtils.IsHeadless ? "[Headless Host]" :
-                                 FikaBackendUtils.IsServer ? "[FIKA Server]" :
-                                 "[Client]";
+                string ctx = FikaBackendUtils.IsHeadless ? "[Headless Host]" :
+                             FikaBackendUtils.IsServer ? "[FIKA Server]" :
+                             FikaBackendUtils.IsClient ? "[FIKA Client]" :
+                             "[SPT Offline]";
 
-                Plugin.LogSource.LogInfo($"{context} [BotZoneDumper] Dumping {__instance.BotZones.Length} BotZones:");
+                Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Dumping {__instance.BotZones.Length} BotZones...");
 
-                foreach (var botZone in __instance.BotZones)
+                foreach (var zone in __instance.BotZones)
                 {
-                    if (botZone == null)
+                    if (zone == null)
                     {
-                        Plugin.LogSource.LogWarning($"{context} [BotZoneDumper] Skipping null BotZone.");
+                        Plugin.LogSource.LogWarning($"{ctx} [BotZoneDumper] Skipped null BotZone.");
                         continue;
                     }
 
-                    string zoneName = "Unnamed";
-                    string id = "Unknown";
-                    string pos = "N/A";
+                    string name = "[Unnamed]";
+                    string id = "[No ID]";
+                    string pos = "[No Position]";
 
-                    try
-                    {
-                        zoneName = string.IsNullOrWhiteSpace(botZone.NameZone) ? "Unnamed" : botZone.NameZone;
+                    try { name = string.IsNullOrWhiteSpace(zone.NameZone) ? "[Unnamed]" : zone.NameZone; } catch { }
+                    try {
+                        id = zone.Id.ToString();
                     }
                     catch { }
-
                     try
                     {
-                        id = botZone.Id.ToString();
-                    }
-                    catch { id = "Unknown"; }
-
-
-                    try
-                    {
-                        if (botZone.transform != null)
+                        if (zone.transform != null)
                         {
-                            var t = botZone.transform;
-                            pos = $"[{t.position.x:F1}, {t.position.y:F1}, {t.position.z:F1}]";
+                            Vector3 p = zone.transform.position;
+                            pos = $"[{p.x:F1}, {p.y:F1}, {p.z:F1}]";
                         }
                     }
                     catch { }
 
-                    Plugin.LogSource.LogInfo($"{context} [BotZoneDumper] Zone: '{zoneName}' | ID: {id} | Pos: {pos}");
+                    Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Zone: \"{name}\" | ID: {id} | Pos: {pos}");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[BotZoneDumper] Exception during BotZone dump: {ex}");
+                Plugin.LogSource.LogError($"[BotZoneDumper] Exception during zone dump: {ex}");
             }
         }
     }

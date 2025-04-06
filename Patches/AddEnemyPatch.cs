@@ -1,18 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Reflection;
 using EFT;
+using Fika.Core.Coop.Utils;
 using MOAR.Helpers;
 using SPT.Custom.CustomAI;
 using SPT.Reflection.Patching;
-using Fika.Core.Coop.Utils;
 
 namespace MOAR.Patches
 {
     /// <summary>
     /// Prevents same-faction PMC bots from attacking each other unless:
     /// - 'factionAggression' is enabled
-    /// - OR they are solo (only 1 bot in group)
+    /// - OR the bot is in a solo group (1 member)
     /// Always allows aggression across factions or against scavs.
     /// </summary>
     public class AddEnemyPatch : ModulePatch
@@ -28,39 +27,40 @@ namespace MOAR.Patches
                 if (__instance == null || person == null || !person.IsAI)
                 {
                     if (Settings.debug.Value)
-                        Plugin.LogSource.LogDebug("[AddEnemyPatch] Skipped null, non-AI, or missing BotsGroup.");
-                    return true; // Let default logic run
+                        Plugin.LogSource.LogDebug("[AddEnemyPatch] Skipped — null BotsGroup, null target, or target is not AI.");
+                    return true;
                 }
 
-                var ctx = FikaBackendUtils.IsServer ? "[FIKA-Server]" :
-                          FikaBackendUtils.IsClient ? "[FIKA-Client]" : "[SPT-Solo]";
+                string ctx = FikaBackendUtils.IsServer ? "[FIKA-Server]" :
+                             FikaBackendUtils.IsClient ? "[FIKA-Client]" :
+                             "[SPT-Solo]";
 
                 var groupSide = __instance.Side;
                 var targetSide = person.Side;
 
-                // Always allow if cross-faction or either is scav
+                //  Allow aggression if different faction or one is a Scav
                 if (groupSide != targetSide || groupSide == EPlayerSide.Savage || targetSide == EPlayerSide.Savage)
                 {
                     if (Settings.debug.Value)
-                        Plugin.LogSource.LogDebug($"{ctx} [AddEnemyPatch] ALLOW — Different faction or scav: {groupSide} → {targetSide}");
+                        Plugin.LogSource.LogDebug($"{ctx} [AddEnemyPatch] ALLOW — Faction mismatch or Scav involved: {groupSide} → {targetSide}");
                     return true;
                 }
 
+                //  Same faction — evaluate aggression logic
                 bool isSoloGroup = (__instance.GetAllMembers()?.Count ?? 0) <= 1;
                 bool shouldAggress = Settings.factionAggression.Value || isSoloGroup;
 
-                if (!shouldAggress)
+                if (!shouldAggress && Settings.debug.Value)
                 {
-                    if (Settings.debug.Value)
-                        Plugin.LogSource.LogDebug($"{ctx} [AddEnemyPatch] BLOCK — Same side: {groupSide}, solo: {isSoloGroup}, factionAggression: {Settings.factionAggression.Value}");
+                    Plugin.LogSource.LogDebug($"{ctx} [AddEnemyPatch] BLOCK — Same side {groupSide}, Solo: {isSoloGroup}, factionAggression: {Settings.factionAggression.Value}");
                 }
 
                 return shouldAggress;
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[AddEnemyPatch] Exception during AddEnemy check: {ex}");
-                return true; // Fail-safe: allow aggression if logic fails
+                Plugin.LogSource.LogError($"[AddEnemyPatch] Exception occurred — allowing fallback aggression:\n{ex}");
+                return true; // Fail-safe
             }
         }
     }

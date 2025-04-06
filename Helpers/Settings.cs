@@ -9,7 +9,6 @@ using Newtonsoft.Json;
 using UnityEngine;
 using MOAR.Helpers;
 using Fika.Core.Coop.Utils;
-using MOAR.Packets;
 
 namespace MOAR.Helpers
 {
@@ -18,7 +17,6 @@ namespace MOAR.Helpers
         private static ConfigFile _config;
         private static bool _applyingPreset = false;
 
-        // ConfigEntry fields
         public static ConfigEntry<bool> ShowPresetOnRaidStart;
         public static ConfigEntry<KeyboardShortcut> AnnounceKey;
         public static ConfigEntry<string> currentPreset;
@@ -70,42 +68,24 @@ namespace MOAR.Helpers
         public static ConfigEntry<bool> enableBossOverrides;
         public static ConfigEntry<bool> forceHotzonesOnly;
 
-        // Bot spawn settings
         public static ConfigEntry<KeyboardShortcut> DeleteBotSpawn;
         public static ConfigEntry<KeyboardShortcut> AddBotSpawn;
         public static ConfigEntry<KeyboardShortcut> AddSniperSpawn;
         public static ConfigEntry<KeyboardShortcut> AddPlayerSpawn;
 
         public static bool IsFika;
-        public static ConfigSettings ServerStoredValues;
-        public static ConfigSettings ServerStoredDefaults;
         public static ManualLogSource Log;
         public static List<Preset> PresetList;
-        public static double LastUpdatedServer;
 
-        // Init method for Settings
         public static void Init(ConfigFile config)
         {
             _config = config;
             Log = Plugin.LogSource;
             IsFika = Chainloader.PluginInfos.ContainsKey("com.fika.core");
 
-            Log.LogInfo("[Settings] Fetching config and presets from server...");
+            Log.LogInfo("[Settings] Loading presets...");
 
-            try
-            {
-                ServerStoredDefaults = Routers.GetDefaultConfig() ?? new ConfigSettings();
-                ServerStoredValues = Routers.GetServerConfigWithOverrides() ?? new ConfigSettings();
-                PresetList = Routers.GetPresetsList() ?? new List<Preset>();
-            }
-            catch (Exception ex)
-            {
-                Log.LogError($"[Settings] Failed to fetch remote config: {ex.Message}");
-                ServerStoredDefaults = new ConfigSettings();
-                ServerStoredValues = new ConfigSettings();
-                PresetList = new List<Preset>();
-            }
-
+            PresetList = Routers.GetPresetsList() ?? new List<Preset>();
             if (PresetList.Count == 0)
             {
                 Log.LogWarning("[Settings] No presets found — using fallback.");
@@ -125,38 +105,29 @@ namespace MOAR.Helpers
                 selectedPreset?.Name ?? "live-like",
                 new ConfigDescription("Preset to apply.", new AcceptableValueList<string>(PresetList.Select(p => p.Name).ToArray())));
 
-            // Bind ConfigEntries for missing settings
             ShowPresetOnRaidStart = config.Bind("1. Main Settings", "Preset Announce On/Off", true);
             AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
             factionAggression = config.Bind("1. Main Settings", "Faction Based Aggression On/Off", false);
 
-            // Bind spawn-related settings
             DeleteBotSpawn = config.Bind("Bot Spawn Settings", "Delete Bot Spawn Key", new KeyboardShortcut(KeyCode.Delete));
             AddBotSpawn = config.Bind("Bot Spawn Settings", "Add Bot Spawn Key", new KeyboardShortcut(KeyCode.Insert));
             AddSniperSpawn = config.Bind("Bot Spawn Settings", "Add Sniper Spawn Key", new KeyboardShortcut(KeyCode.F1));
             AddPlayerSpawn = config.Bind("Bot Spawn Settings", "Add Player Spawn Key", new KeyboardShortcut(KeyCode.F2));
 
-            // Bind additional settings
             debug = config.Bind("1. Main Settings", "Debug Mode", false);
             enablePointOverlay = config.Bind("1. Main Settings", "Enable Point Overlay", true);
-            startingPmcs = config.Bind("1. Main Settings", "Starting PMCs On/Off", ServerStoredDefaults.startingPmcs);
-            spawnSmoothing = config.Bind("1. Main Settings", "Spawn Smoothing On/Off", ServerStoredDefaults.spawnSmoothing);
-            randomSpawns = config.Bind("1. Main Settings", "Random Spawns On/Off", ServerStoredDefaults.randomSpawns);
-            pmcDifficulty = config.Bind("1. Main Settings", "PMC Difficulty", ServerStoredDefaults.pmcDifficulty);
-            scavDifficulty = config.Bind("1. Main Settings", "Scav Difficulty", ServerStoredDefaults.scavDifficulty);
 
-            BindWaveSettings();
-            BindBossSettings();
-            BindDebugAndOverlay();
-            BindKeys();
+            startingPmcs = config.Bind("1. Main Settings", "Starting PMCs On/Off", false);
+            spawnSmoothing = config.Bind("1. Main Settings", "Spawn Smoothing On/Off", true);
+            randomSpawns = config.Bind("1. Main Settings", "Random Spawns On/Off", false);
+            pmcDifficulty = config.Bind("1. Main Settings", "PMC Difficulty", 0.6);
+            scavDifficulty = config.Bind("1. Main Settings", "Scav Difficulty", 0.4);
 
             currentPreset.SettingChanged += (_, _) => OnPresetChange();
             startingPmcs.SettingChanged += (_, _) => OnStartingPmcsChanged();
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
             randomSpawns.SettingChanged += (_, _) => OnStartingPmcsChanged();
 
-
-            // Display the preset if not in headless mode
             if (!IsFika && ShowPresetOnRaidStart.Value && !FikaBackendUtils.IsHeadless)
             {
                 Methods.DisplayMessage($"Live preset: {selectedPreset?.Label ?? selectedPreset?.Name}", ENotificationIconType.Quest);
@@ -165,13 +136,15 @@ namespace MOAR.Helpers
             Log.LogInfo($"[Settings] Initialization complete. Selected preset: {selectedPreset?.Name}");
         }
 
-        // Additional helper methods for settings binding and logic
-        private static void BindWaveSettings() { /* Unchanged for now */ }
-        private static void BindBossSettings() { /* Unchanged for now */ }
-        private static void BindDebugAndOverlay() { /* Unchanged for now */ }
-        private static void BindKeys() { /* Unchanged for now */ }
+        private static void OnStartingPmcsChanged()
+        {
+            if (startingPmcs.Value)
+            {
+                randomSpawns.Value = true;
+                spawnSmoothing.Value = false;
+            }
+        }
 
-        // Preset change handling
         private static void OnPresetChange()
         {
             if (_applyingPreset) return;
@@ -196,16 +169,6 @@ namespace MOAR.Helpers
             finally { _applyingPreset = false; }
         }
 
-        private static void OnStartingPmcsChanged()
-        {
-            if (startingPmcs.Value)
-            {
-                randomSpawns.Value = true;
-                spawnSmoothing.Value = false;
-            }
-        }
-
-        // Apply settings for a specific preset
         private static void ApplyPresetSettings(Preset preset)
         {
             if (preset?.Settings == null) return;
@@ -225,9 +188,6 @@ namespace MOAR.Helpers
                 TrySet("randomSpawns", (bool v) => randomSpawns.Value = v);
                 TrySet("spawnSmoothing", (bool v) => spawnSmoothing.Value = v);
                 TrySet("startingPmcs", (bool v) => startingPmcs.Value = v);
-                // More settings...
-
-                Log.LogInfo($"[Settings] Applied preset: {preset.Name}");
             }
             catch (Exception ex)
             {
@@ -235,41 +195,11 @@ namespace MOAR.Helpers
             }
         }
 
-        // Get current preset name and label
         public static string GetCurrentPresetName() => currentPreset?.Value ?? "live-like";
+
         public static string GetCurrentPresetLabel() =>
             PresetList.FirstOrDefault(p => p.Name == GetCurrentPresetName())?.Label ?? GetCurrentPresetName();
 
-        // Apply preset from a sync packet
-        public static void ApplyPresetFromPacket(PresetSyncPacket packet)
-        {
-            if (packet == null || string.IsNullOrEmpty(packet.PresetName))
-            {
-                Log.LogWarning("[Settings] Received empty preset packet.");
-                return;
-            }
-
-            var preset = PresetList.FirstOrDefault(p => p.Name == packet.PresetName);
-            if (preset == null)
-            {
-                Log.LogWarning($"[Settings] No match for preset: {packet.PresetName}, using fallback.");
-                preset = new Preset { Name = "live-like", Label = "Live Like" };
-            }
-
-            Log.LogInfo($"[Settings] Applying preset from sync: {preset.Name}");
-            _applyingPreset = true;
-            try
-            {
-                currentPreset.Value = preset.Name;
-                ApplyPresetSettings(preset);
-            }
-            finally
-            {
-                _applyingPreset = false;
-            }
-        }
-
-        // Manual announcement of the current preset
         public static void AnnounceManually()
         {
             if (IsFika && FikaBackendUtils.IsHeadless)
@@ -280,12 +210,12 @@ namespace MOAR.Helpers
                 selected != null ? $"Current preset: {selected.Label}" : "Unknown preset selected",
                 selected != null ? ENotificationIconType.Quest : ENotificationIconType.Alert);
         }
-        // Add the missing method OnStartingPmcsChanged
-        private static void OnStartingPmcsChanged(object sender, EventArgs e)
-        {
-            // Implement the logic for handling the change in starting PMCs setting
-            Log.LogInfo("[Settings] Starting PMCs setting changed.");
-            // Add any additional logic needed for handling the change
-        }
+    }
+
+    public static class ConfigEntryExtensions
+    {
+        public static bool BetterIsDown(this KeyboardShortcut shortcut) =>
+            shortcut.IsDown()
+;
     }
 }
