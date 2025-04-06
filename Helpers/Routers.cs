@@ -1,54 +1,48 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
+using BepInEx.Configuration;
 using MOAR.Helpers;
-using MOAR.Packets;
 
 namespace MOAR
 {
     /// <summary>
-    /// Handles routing and interactions with config, presets, and in-game state.
+    /// Handles routing and interactions with config and in-game state.
     /// </summary>
     public static class Routers
     {
         private static ConfigSettings _serverSettings = new();
-        private static string _activePresetName = "live-like";
-        private static string _activePresetLabel = "Live-Like";
 
         /// <summary>
         /// Initializes router state based on current settings.
         /// </summary>
-        public static void Init(BepInEx.Configuration.ConfigFile config)
+        public static void Init(ConfigFile config)
         {
-            _activePresetName = Settings.currentPreset?.Value ?? "live-like";
-            _activePresetLabel = Settings.GetCurrentPresetLabel();
+            // Nothing required here yet.
         }
 
         /// <summary>
-        /// Returns the current active preset's label.
+        /// Returns the current preset label (same as name in simplified logic).
         /// </summary>
-        public static string GetCurrentPresetLabel() => _activePresetLabel;
+        public static string GetCurrentPresetLabel() => Settings.GetCurrentPresetLabel();
 
         /// <summary>
         /// Returns the label used for announcements.
         /// </summary>
-        public static string GetAnnouncePresetLabel() => _activePresetLabel;
+        public static string GetAnnouncePresetLabel() => Settings.GetCurrentPresetLabel();
 
         /// <summary>
-        /// Sets the active preset name and label.
+        /// Sets the current preset (used by host or UI changes).
         /// </summary>
         public static void SetPreset(string name)
         {
-            var preset = Settings.PresetList.FirstOrDefault(p => p.Name == name);
-            if (preset != null)
-            {
-                _activePresetName = preset.Name;
-                _activePresetLabel = preset.Label;
-            }
+            Settings.currentPreset.Value = name;
         }
 
+        /// <summary>
+        /// Updates the displayed preset label (used only during host startup).
+        /// </summary>
         public static void SetHostPresetLabel(string label)
         {
-            _activePresetLabel = string.IsNullOrWhiteSpace(label) ? "Live-Like" : label.Trim();
+            // No-op: handled automatically in Settings.cs
         }
 
         /// <summary>
@@ -57,14 +51,9 @@ namespace MOAR
         public static ConfigSettings GetDefaultConfig() => new();
 
         /// <summary>
-        /// Returns current server config with overrides.
+        /// Returns current server config (host authoritative).
         /// </summary>
         public static ConfigSettings GetServerConfigWithOverrides() => _serverSettings;
-
-        /// <summary>
-        /// Returns the list of available presets.
-        /// </summary>
-        public static List<Preset> GetPresetsList() => Settings.PresetList;
 
         public static string AddBotSpawn() => "[MOAR] Bot spawn added.";
         public static string AddSniperSpawn() => "[MOAR] Sniper spawn added.";

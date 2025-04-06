@@ -5,9 +5,7 @@ using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using EFT.Communications;
-using Newtonsoft.Json;
 using UnityEngine;
-using MOAR.Helpers;
 using Fika.Core.Coop.Utils;
 
 namespace MOAR.Helpers
@@ -75,7 +73,6 @@ namespace MOAR.Helpers
 
         public static bool IsFika;
         public static ManualLogSource Log;
-        public static List<Preset> PresetList;
 
         public static void Init(ConfigFile config)
         {
@@ -83,27 +80,7 @@ namespace MOAR.Helpers
             Log = Plugin.LogSource;
             IsFika = Chainloader.PluginInfos.ContainsKey("com.fika.core");
 
-            Log.LogInfo("[Settings] Loading presets...");
-
-            PresetList = Routers.GetPresetsList() ?? new List<Preset>();
-            if (PresetList.Count == 0)
-            {
-                Log.LogWarning("[Settings] No presets found — using fallback.");
-                PresetList.Add(new Preset { Name = "live-like", Label = "Live Like" });
-            }
-
-            string fallbackPresetName = config.Bind("1. Main Settings", "Moar Preset Fallback", "live-like").Value?.Trim();
-            string liveLabel = Routers.GetCurrentPresetLabel()?.Trim();
-
-            var selectedPreset = PresetList.FirstOrDefault(p =>
-                string.Equals(p.Label?.Trim(), liveLabel, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Name?.Trim(), liveLabel, StringComparison.OrdinalIgnoreCase)) ??
-                PresetList.FirstOrDefault(p => string.Equals(p.Name, fallbackPresetName, StringComparison.OrdinalIgnoreCase)) ??
-                PresetList.First();
-
-            currentPreset = config.Bind("1. Main Settings", "Moar Preset",
-                selectedPreset?.Name ?? "live-like",
-                new ConfigDescription("Preset to apply.", new AcceptableValueList<string>(PresetList.Select(p => p.Name).ToArray())));
+            currentPreset = config.Bind("1. Main Settings", "Moar Preset", "live-like");
 
             ShowPresetOnRaidStart = config.Bind("1. Main Settings", "Preset Announce On/Off", true);
             AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
@@ -128,12 +105,12 @@ namespace MOAR.Helpers
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
             randomSpawns.SettingChanged += (_, _) => OnStartingPmcsChanged();
 
-            if (!IsFika && ShowPresetOnRaidStart.Value && !FikaBackendUtils.IsHeadless)
+            if (ShowPresetOnRaidStart.Value && (!IsFika || FikaBackendUtils.IsServer))
             {
-                Methods.DisplayMessage($"Live preset: {selectedPreset?.Label ?? selectedPreset?.Name}", ENotificationIconType.Quest);
+                Methods.DisplayMessage($"Live preset: {currentPreset.Value}", ENotificationIconType.Quest);
             }
 
-            Log.LogInfo($"[Settings] Initialization complete. Selected preset: {selectedPreset?.Name}");
+            Log.LogInfo($"[Settings] Initialization complete. Selected preset: {currentPreset.Value}");
         }
 
         private static void OnStartingPmcsChanged()
@@ -152,70 +129,29 @@ namespace MOAR.Helpers
 
             try
             {
-                var selected = PresetList.FirstOrDefault(p => p.Name == currentPreset.Value);
-                if (selected != null)
-                {
-                    ApplyPresetSettings(selected);
-                    Methods.DisplayMessage($"Current preset: {selected.Label}", ENotificationIconType.Quest);
-                    Routers.SetPreset(selected.Name);
-                }
-                else
-                {
-                    Log.LogWarning($"[Settings] Preset not found: {currentPreset.Value}");
-                    currentPreset.Value = "live-like";
-                    Methods.DisplayMessage("Unknown preset selected — fallback applied", ENotificationIconType.Alert);
-                }
+                Methods.DisplayMessage($"Current preset: {currentPreset.Value}", ENotificationIconType.Quest);
             }
-            finally { _applyingPreset = false; }
-        }
-
-        private static void ApplyPresetSettings(Preset preset)
-        {
-            if (preset?.Settings == null) return;
-
-            try
+            finally
             {
-                var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(preset.Settings));
-
-                void TrySet<T>(string key, Action<T> setter)
-                {
-                    if (dict.TryGetValue(key, out var val))
-                    {
-                        try { setter((T)Convert.ChangeType(val, typeof(T))); } catch { }
-                    }
-                }
-
-                TrySet("randomSpawns", (bool v) => randomSpawns.Value = v);
-                TrySet("spawnSmoothing", (bool v) => spawnSmoothing.Value = v);
-                TrySet("startingPmcs", (bool v) => startingPmcs.Value = v);
-            }
-            catch (Exception ex)
-            {
-                Log.LogError($"[Settings] Failed to apply preset: {ex.Message}");
+                _applyingPreset = false;
             }
         }
 
         public static string GetCurrentPresetName() => currentPreset?.Value ?? "live-like";
 
-        public static string GetCurrentPresetLabel() =>
-            PresetList.FirstOrDefault(p => p.Name == GetCurrentPresetName())?.Label ?? GetCurrentPresetName();
+        public static string GetCurrentPresetLabel() => currentPreset?.Value ?? "live-like";
 
         public static void AnnounceManually()
         {
             if (IsFika && FikaBackendUtils.IsHeadless)
                 return;
 
-            var selected = PresetList.FirstOrDefault(p => p.Name == currentPreset.Value);
-            Methods.DisplayMessage(
-                selected != null ? $"Current preset: {selected.Label}" : "Unknown preset selected",
-                selected != null ? ENotificationIconType.Quest : ENotificationIconType.Alert);
+            Methods.DisplayMessage($"Current preset: {GetCurrentPresetLabel()}", ENotificationIconType.Quest);
         }
     }
 
     public static class ConfigEntryExtensions
     {
-        public static bool BetterIsDown(this KeyboardShortcut shortcut) =>
-            shortcut.IsDown()
-;
+        public static bool BetterIsDown(this KeyboardShortcut shortcut) => shortcut.IsDown();
     }
 }

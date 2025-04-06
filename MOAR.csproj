@@ -116,15 +116,11 @@
     <Compile Include="Components\BotZoneRenderer.cs" />
     <Compile Include="Components\Notification\DebugNotification.cs" />
     <Compile Include="ConfigSettings.cs" />
-    <Compile Include="Helpers\ConfigurationManagerAttributes.cs" />
-    <Compile Include="Helpers\GetPresetsListResponse.cs" />
     <Compile Include="Helpers\Methods.cs" />
     <Compile Include="Helpers\Routers.cs" />
     <Compile Include="Helpers\Settings.cs" />
     <Compile Include="Helpers\UIUtils.cs" />
     <Compile Include="Data\Ixyz.cs" />
-    <Compile Include="Helpers\Preset.cs" />
-    <Compile Include="Packets\ConfigPacket.cs" />
     <Compile Include="Packets\DebugNotificationPacket.cs" />
     <Compile Include="Patches\AddEnemyPatch.cs" />
     <Compile Include="Patches\BotZoneDumper.cs" />
@@ -134,7 +130,6 @@
     <Compile Include="Patches\SniperPatch.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Packets\SetPresetRequest.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
