@@ -4,10 +4,11 @@ using System.Threading.Tasks;
 using Comfort.Common;
 using EFT;
 using EFT.Communications;
-using MOAR.Components.Notifications;
+using MOAR.Packets;
 using MOAR.Data;
 using SPT.Reflection.Utils;
 using UnityEngine;
+using MOAR.Components.Notifications; // ✅ This is the correct source
 
 namespace MOAR.Helpers
 {
@@ -18,8 +19,8 @@ namespace MOAR.Helpers
     public static class Methods
     {
         /// <summary>
-        /// Displays a client-side notification and optionally broadcasts to other players if in FIKA multiplayer.
-        /// Safe for single-player, host, client, and headless environments.
+        /// Displays a local notification and optionally broadcasts across FIKA if server.
+        /// Always safe for use in singleplayer, host, client, or headless.
         /// </summary>
         public static void DisplayMessage(string message, ENotificationIconType icon = ENotificationIconType.Quest)
         {
@@ -39,7 +40,7 @@ namespace MOAR.Helpers
 
                 notification.Display();
 
-                if (Settings.IsFika)
+                if (Settings.IsFika && Fika.Core.Coop.Utils.FikaBackendUtils.IsServer)
                     notification.BroadcastToClients();
             }
             catch (Exception ex)
@@ -49,7 +50,7 @@ namespace MOAR.Helpers
         }
 
         /// <summary>
-        /// Asynchronously refreshes backend location info (e.g. after map changes).
+        /// Refreshes the location backend info for the current session (safe async).
         /// </summary>
         public static async Task RefreshLocationInfo()
         {
@@ -71,8 +72,7 @@ namespace MOAR.Helpers
         }
 
         /// <summary>
-        /// Retrieves the player's current world position and map for use in spawn-related tools.
-        /// Returns a fallback response if player or game state is invalid.
+        /// Gets the player's coordinates and location for use with bot spawn placement tools.
         /// </summary>
         public static AddSpawnRequest GetPlayersCoordinatesAndLevel()
         {
@@ -87,8 +87,7 @@ namespace MOAR.Helpers
                     return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
                 }
 
-                var pos = player.Position;
-
+                Vector3 pos = player.Position;
                 return new AddSpawnRequest
                 {
                     Map = player.Location ?? "Unknown",
@@ -108,8 +107,7 @@ namespace MOAR.Helpers
         }
 
         /// <summary>
-        /// Detects when the user presses the AnnounceKey and shows the current preset.
-        /// Used during runtime for debug or multiplayer awareness.
+        /// Checks for manual announce key and displays current preset if pressed.
         /// </summary>
         public static void CheckAnnounceKey()
         {

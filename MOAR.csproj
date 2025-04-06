@@ -114,7 +114,7 @@
   <ItemGroup>
     <Compile Include="AddSpawnRequest.cs" />
     <Compile Include="Components\BotZoneRenderer.cs" />
-    <Compile Include="Components\Notifications\DebugNotification.cs" />
+    <Compile Include="Components\Notification\DebugNotification.cs" />
     <Compile Include="ConfigSettings.cs" />
     <Compile Include="Helpers\ConfigurationManagerAttributes.cs" />
     <Compile Include="Helpers\GetPresetsListResponse.cs" />
@@ -126,7 +126,9 @@
     <Compile Include="Helpers\Preset.cs" />
     <Compile Include="Networking\MOARPresetSyncHandler.cs" />
     <Compile Include="Networking\MOARSync.cs" />
+    <Compile Include="Packets\DebugNotificationPacket.cs" />
     <Compile Include="Packets\PresetSyncPacket.cs" />
+    <Compile Include="Packets\RaidStartGuardPatch.cs" />
     <Compile Include="Patches\AddEnemyPatch.cs" />
     <Compile Include="Patches\BotZoneDumper.cs" />
     <Compile Include="Patches\NotificationPatch.cs" />

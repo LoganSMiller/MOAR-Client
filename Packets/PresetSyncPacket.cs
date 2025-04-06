@@ -1,39 +1,77 @@
-﻿using LiteNetLib.Utils;
+﻿using System;
+using EFT.Communications;
+using Fika.Core.Networking;
+using LiteNetLib.Utils;
 
-namespace MOAR.Networking
+namespace MOAR.Packets
 {
     /// <summary>
-    /// Sync packet sent from server to clients to broadcast the active MOAR preset.
-    /// Implements INetSerializable for FIKA Coop support.
+    /// Syncs a selected MOAR preset from server to all FIKA clients.
+    /// Clients apply it automatically on receipt.
     /// </summary>
-    public struct PresetSyncPacket : INetSerializable
+    [Serializable]
+    public sealed class PresetSyncPacket : INetSerializable
     {
-        public string Version;
-        public string PresetName;
-        public string PresetLabel;
+        /// <summary>
+        /// The internal config name of the preset.
+        /// </summary>
+        public string PresetName { get; set; } = string.Empty;
 
-        // Static version constant for validation (optional)
-        public static readonly string CurrentVersion = "1.0.0"; // Match this to your MOAR version
+        /// <summary>
+        /// The display label for the preset.
+        /// </summary>
+        public string PresetLabel { get; set; } = string.Empty;
 
-        public PresetSyncPacket(string presetName, string presetLabel)
+        /// <summary>
+        /// Version string for validation.
+        /// </summary>
+        public static readonly string CurrentVersion = Plugin.Version;
+        public string Version { get; set; } = CurrentVersion;
+
+        /// <summary>
+        /// Empty constructor for deserialization.
+        /// </summary>
+        public PresetSyncPacket() { }
+
+        /// <summary>
+        /// Constructs a new sync packet with the given name and label.
+        /// </summary>
+        public PresetSyncPacket(string name, string label)
         {
-            Version = CurrentVersion;
-            PresetName = presetName;
-            PresetLabel = presetLabel;
+            PresetName = name?.Trim() ?? string.Empty;
+            PresetLabel = label?.Trim() ?? string.Empty;
         }
 
-        public void Deserialize(NetDataReader reader)
-        {
-            Version = reader.GetString();
-            PresetName = reader.GetString();
-            PresetLabel = reader.GetString();
-        }
-
+        /// <summary>
+        /// Writes packet data to the network stream.
+        /// </summary>
         public void Serialize(NetDataWriter writer)
         {
-            writer.Put(Version);
-            writer.Put(PresetName);
-            writer.Put(PresetLabel);
+            writer.Put(PresetName ?? string.Empty);
+            writer.Put(PresetLabel ?? string.Empty);
+            writer.Put(Version ?? string.Empty);
         }
+
+        /// <summary>
+        /// Reads packet data from the network stream.
+        /// </summary>
+        public void Deserialize(NetDataReader reader)
+        {
+            PresetName = reader.GetString();
+            PresetLabel = reader.GetString();
+            Version = reader.GetString();
+
+            Plugin.LogSource?.LogDebug($"[PresetSyncPacket] Deserialized: {this}");
+        }
+
+        /// <summary>
+        /// Validates whether the packet contains usable data.
+        /// </summary>
+        public bool IsValid() =>
+            !string.IsNullOrWhiteSpace(PresetName) &&
+            !string.IsNullOrWhiteSpace(PresetLabel);
+
+        public override string ToString() =>
+            $"[PresetSyncPacket] \"{PresetLabel}\" ({PresetName}) v{Version}";
     }
 }

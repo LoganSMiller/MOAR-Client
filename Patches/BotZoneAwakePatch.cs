@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using EFT.Game.Spawning;
 using HarmonyLib;
 using MOAR.Components;
@@ -28,26 +29,36 @@ namespace MOAR.Patches
         [HarmonyPriority(Priority.Last)]
         private static void Postfix(BotZone __instance)
         {
-            if (__instance == null || __instance.gameObject == null)
+            try
             {
-                Plugin.LogSource?.LogWarning("[BotZoneAwakePatch] BotZone or GameObject is null. Skipping renderer attach.");
-                return;
-            }
+                if (__instance == null || __instance.gameObject == null)
+                {
+                    Plugin.LogSource?.LogWarning("[BotZoneAwakePatch] BotZone or GameObject is null. Skipping.");
+                    return;
+                }
 
-            if (!Settings.enablePointOverlay.Value)
-            {
-                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Overlay disabled in config. Skipping renderer attach.");
-                return;
-            }
+                if (!Settings.enablePointOverlay.Value)
+                {
+                    Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Point overlay disabled. Skipping.");
+                    return;
+                }
 
-            if (!__instance.TryGetComponent<BotZoneRenderer>(out _))
-            {
-                __instance.gameObject.AddComponent<BotZoneRenderer>();
-                Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] BotZoneRenderer added to '{__instance.NameZone}' (headless: {FikaBackendUtils.IsServer})");
+                string zoneName = "[Unknown]";
+                try { zoneName = __instance.NameZone; } catch { }
+
+                if (!__instance.TryGetComponent<BotZoneRenderer>(out _))
+                {
+                    __instance.gameObject.AddComponent<BotZoneRenderer>();
+                    Plugin.LogSource?.LogInfo($"[BotZoneAwakePatch] Attached BotZoneRenderer to zone: '{zoneName}' (headless: {FikaBackendUtils.IsHeadless})");
+                }
+                else
+                {
+                    Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] BotZoneRenderer already exists on zone: '{zoneName}'");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] BotZoneRenderer already exists on '{__instance.NameZone}'.");
+                Plugin.LogSource?.LogError($"[BotZoneAwakePatch] Exception during BotZoneRenderer attach: {ex}");
             }
         }
     }

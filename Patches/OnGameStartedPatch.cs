@@ -1,54 +1,61 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
+using Comfort.Common;
 using EFT;
+using Fika.Core.Coop.Utils;
 using HarmonyLib;
 using MOAR.Components;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
 using UnityEngine;
-using Fika.Core.Coop.Utils;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Ensures a BotZoneRenderer is attached to the GameWorld root object when a raid begins.
-    /// Enables visualization of bot spawn zones, useful for both local and headless debugging.
+    /// Attaches a BotZoneRenderer to the GameWorld if enabled and in a compatible environment.
+    /// Allows visualization of spawn zones for debugging or live adjustment.
     /// </summary>
     public sealed class OnGameStartedPatch : ModulePatch
     {
-        /// <summary>
-        /// Targets GameWorld.OnGameStarted to inject component setup.
-        /// </summary>
         protected override MethodBase GetTargetMethod() =>
             AccessTools.Method(typeof(GameWorld), nameof(GameWorld.OnGameStarted));
 
-        /// <summary>
-        /// Adds BotZoneRenderer to the GameWorld root object if overlay is enabled.
-        /// Avoids redundant attachment and respects headless/server environment.
-        /// </summary>
         [PatchPrefix]
         private static void Prefix(GameWorld __instance)
         {
-            if (__instance == null || __instance.gameObject == null)
+            try
             {
-                Plugin.LogSource?.LogWarning("[OnGameStartedPatch] GameWorld is null. Cannot attach BotZoneRenderer.");
-                return;
-            }
+                if (__instance == null || __instance.gameObject == null)
+                {
+                    Plugin.LogSource?.LogWarning("[OnGameStartedPatch] GameWorld or GameObject is null. Skipping overlay attach.");
+                    return;
+                }
 
-            if (!Settings.enablePointOverlay.Value)
+                if (!Settings.enablePointOverlay.Value)
+                {
+                    Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Point overlay disabled in config.");
+                    return;
+                }
+
+                if (Settings.IsFika && FikaBackendUtils.IsHeadless)
+                {
+                    Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Skipping overlay in FIKA headless mode.");
+                    return;
+                }
+
+                if (__instance.GetComponent<BotZoneRenderer>() != null)
+                {
+                    Plugin.LogSource?.LogDebug("[OnGameStartedPatch] BotZoneRenderer already attached. No action taken.");
+                    return;
+                }
+
+                __instance.gameObject.AddComponent<BotZoneRenderer>();
+                Plugin.LogSource?.LogInfo("[OnGameStartedPatch] BotZoneRenderer successfully attached to GameWorld.");
+            }
+            catch (Exception ex)
             {
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Point overlay disabled in config. Renderer will not be attached.");
-                return;
+                Plugin.LogSource?.LogError($"[OnGameStartedPatch] Exception while attaching overlay: {ex}");
             }
-
-            if (__instance.TryGetComponent<BotZoneRenderer>(out _))
-            {
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] BotZoneRenderer already exists. Skipping.");
-                return;
-            }
-
-            __instance.gameObject.AddComponent<BotZoneRenderer>();
-            Plugin.LogSource?.LogInfo($"[OnGameStartedPatch] BotZoneRenderer attached to GameWorld " +
-                $"(headless: {FikaBackendUtils.IsServer}).");
         }
     }
 }

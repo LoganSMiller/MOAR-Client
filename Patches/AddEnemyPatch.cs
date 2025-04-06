@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using EFT;
 using MOAR.Helpers;
@@ -10,8 +11,8 @@ namespace MOAR.Patches
 {
     /// <summary>
     /// Prevents same-faction PMC bots from attacking each other unless:
-    /// - Configured via 'factionAggression'
-    /// - Or they are solo/isolated
+    /// - 'factionAggression' is enabled
+    /// - OR they are solo (only 1 bot in group)
     /// Always allows aggression across factions or against scavs.
     /// </summary>
     public class AddEnemyPatch : ModulePatch
@@ -19,37 +20,48 @@ namespace MOAR.Patches
         protected override MethodBase GetTargetMethod() =>
             typeof(BotsGroup).GetMethod(nameof(BotsGroup.AddEnemy), BindingFlags.Instance | BindingFlags.Public);
 
-        /// <summary>
-        /// Evaluates whether a bot should be marked as an enemy before adding.
-        /// </summary>
         [PatchPrefix]
         private static bool PatchPrefix(BotsGroup __instance, IPlayer person, EBotEnemyCause cause)
         {
-            if (__instance == null || person == null || !person.IsAI)
+            try
             {
-                if (Settings.debug.Value)
-                    Plugin.LogSource.LogDebug("[AddEnemyPatch] Skipped null, non-AI, or invalid target.");
-                return true;
+                if (__instance == null || person == null || !person.IsAI)
+                {
+                    if (Settings.debug.Value)
+                        Plugin.LogSource.LogDebug("[AddEnemyPatch] Skipped null, non-AI, or missing BotsGroup.");
+                    return true; // Let default logic run
+                }
+
+                var ctx = FikaBackendUtils.IsServer ? "[FIKA-Server]" :
+                          FikaBackendUtils.IsClient ? "[FIKA-Client]" : "[SPT-Solo]";
+
+                var groupSide = __instance.Side;
+                var targetSide = person.Side;
+
+                // Always allow if cross-faction or either is scav
+                if (groupSide != targetSide || groupSide == EPlayerSide.Savage || targetSide == EPlayerSide.Savage)
+                {
+                    if (Settings.debug.Value)
+                        Plugin.LogSource.LogDebug($"{ctx} [AddEnemyPatch] ALLOW — Different faction or scav: {groupSide} → {targetSide}");
+                    return true;
+                }
+
+                bool isSoloGroup = (__instance.GetAllMembers()?.Count ?? 0) <= 1;
+                bool shouldAggress = Settings.factionAggression.Value || isSoloGroup;
+
+                if (!shouldAggress)
+                {
+                    if (Settings.debug.Value)
+                        Plugin.LogSource.LogDebug($"{ctx} [AddEnemyPatch] BLOCK — Same side: {groupSide}, solo: {isSoloGroup}, factionAggression: {Settings.factionAggression.Value}");
+                }
+
+                return shouldAggress;
             }
-
-            EPlayerSide groupSide = __instance.Side;
-            EPlayerSide targetSide = person.Side;
-
-            // Always allow opposing factions or scav involvement
-            if (groupSide != targetSide || groupSide == EPlayerSide.Savage || targetSide == EPlayerSide.Savage)
-                return true;
-
-            // Evaluate solo bot fallback or configured aggression
-            bool isSoloBot = (__instance.GetAllMembers()?.Count ?? 0) <= 1;
-            bool allowSameFactionAggression = Settings.factionAggression.Value || isSoloBot;
-
-            if (!allowSameFactionAggression && Settings.debug.Value)
+            catch (Exception ex)
             {
-                string context = FikaBackendUtils.IsServer ? "[Headless]" : "[Client]";
-                Plugin.LogSource.LogDebug($"{context} [AddEnemyPatch] Prevented {groupSide} bot from targeting {targetSide} (solo: {isSoloBot}, aggression: {Settings.factionAggression.Value})");
+                Plugin.LogSource.LogError($"[AddEnemyPatch] Exception during AddEnemy check: {ex}");
+                return true; // Fail-safe: allow aggression if logic fails
             }
-
-            return allowSameFactionAggression;
         }
     }
 }

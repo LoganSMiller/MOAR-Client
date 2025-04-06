@@ -55,7 +55,7 @@ namespace MOAR
                 if (Settings.IsFika)
                 {
                     DebugNotification.RegisterNetworkHandler();
-                    MOARSync.RegisterFikaEventListeners(); 
+                    MOARSync.RegisterFikaEventListeners(); // Only lifecycle safe here
                 }
 
                 Logger.LogInfo("[MOAR] Initialization complete.");
@@ -70,7 +70,7 @@ namespace MOAR
         {
             try
             {
-                EnablePatches();
+               
 
                 if (Settings.IsFika && FikaBackendUtils.IsServer)
                     StartCoroutine(WaitThenBroadcastPreset());
@@ -85,7 +85,7 @@ namespace MOAR
 
         private IEnumerator WaitThenBroadcastPreset()
         {
-            LogSource.LogInfo("[MOAR] Waiting for FIKA server to be ready...");
+            LogSource.LogInfo("[MOAR] Waiting for FIKA server to be ready before sync...");
 
             while (!Singleton<Fika.Core.Networking.FikaServer>.Instantiated)
                 yield return null;
@@ -168,7 +168,6 @@ namespace MOAR
             try
             {
                 var packet = new PresetSyncPacket(presetName, presetLabel);
-                MOARPresetSyncHandler.OnClientReceivedPresetPacket(packet); // Apply locally for logs
 
                 if (Singleton<Fika.Core.Networking.FikaServer>.Instantiated)
                 {

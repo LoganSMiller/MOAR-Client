@@ -1,48 +1,61 @@
-﻿using System.Linq;
+﻿using System;
 using System.Reflection;
-using EFT;
-using EFT.Communications;
 using HarmonyLib;
+using EFT.UI.Matchmaker;
+using EFT.Communications;
+using Fika.Core.Coop.Utils;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
-using Fika.Core.Coop.Utils;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Displays the current MOAR preset with a randomized flair message when a raid starts.
-    /// Automatically avoids duplication in FIKA multiplayer and respects headless host logic.
+    /// Displays the current preset on raid start if enabled in config.
+    /// Safe for local, host, client, and headless environments.
     /// </summary>
-    public sealed class NotificationPatch : ModulePatch
+    public class NotificationPatch : ModulePatch
     {
-        /// <summary>
-        /// Hooks into GameWorld.OnGameStarted to broadcast preset label.
-        /// </summary>
-        protected override MethodBase GetTargetMethod() =>
-            AccessTools.Method(typeof(GameWorld), nameof(GameWorld.OnGameStarted));
-
-        /// <summary>
-        /// Prefix logic to announce preset with flair if enabled.
-        /// Skips FIKA clients and non-hosts to avoid duplicate messaging.
-        /// </summary>
-        [PatchPrefix]
-        private static void Prefix()
+        protected override MethodBase GetTargetMethod()
         {
-            if (!Settings.ShowPresetOnRaidStart.Value)
-                return;
+            // Target: public override void Show(TimeHasComeScreenClass controller)
+            return typeof(MatchmakerTimeHasCome).GetMethod(
+                "Show",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy,
+                null,
+                new Type[] { typeof(MatchmakerTimeHasCome.TimeHasComeScreenClass) },
+                null
+            );
+        }
 
-            // Prevent redundant notifications if part of FIKA multiplayer
-            if (Settings.IsFika && !FikaBackendUtils.IsServer)
+        [PatchPostfix]
+        public static void Postfix()
+        {
+            try
             {
-                Plugin.LogSource.LogDebug("[NotificationPatch] Skipped client-side preset announcement (FIKA active).");
-                return;
+                if (!Settings.ShowPresetOnRaidStart.Value)
+                    return;
+
+                if (Settings.IsFika && FikaBackendUtils.IsHeadless)
+                {
+                    Plugin.LogSource.LogDebug("[NotificationPatch] Skipped notification — headless mode active.");
+                    return;
+                }
+
+                var label = Routers.GetCurrentPresetLabel();
+                if (!string.IsNullOrWhiteSpace(label))
+                {
+                    Methods.DisplayMessage($"Live preset: {label}", ENotificationIconType.Quest);
+                    Plugin.LogSource.LogInfo($"[NotificationPatch] Displayed preset notification: {label}");
+                }
+                else
+                {
+                    Plugin.LogSource.LogWarning("[NotificationPatch] No preset label available to display.");
+                }
             }
-
-            var selected = Settings.PresetList.FirstOrDefault(p => p.Name == Settings.currentPreset.Value);
-            var label = selected?.Label ?? Settings.currentPreset.Value ?? "Unknown";
-            var flair = Plugin.GetFlairMessage();
-
-            Methods.DisplayMessage($"Current preset is {label}{flair}", ENotificationIconType.EntryPoint);
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[NotificationPatch] Exception: {ex}");
+            }
         }
     }
 }

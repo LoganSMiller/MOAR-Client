@@ -1,9 +1,11 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using EFT.Game.Spawning;
 using HarmonyLib;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
 using Fika.Core.Coop.Utils;
+using UnityEngine;
 
 namespace MOAR.Patches
 {
@@ -19,28 +21,67 @@ namespace MOAR.Patches
         [PatchPostfix]
         private static void Postfix(LocationScene __instance)
         {
-            if (!Settings.debug.Value)
+            try
             {
-                Plugin.LogSource.LogDebug("[BotZoneDumper] Skipped zone dump (debug mode is off).");
-                return;
+                if (!Settings.debug.Value)
+                {
+                    Plugin.LogSource.LogDebug("[BotZoneDumper] Skipped zone dump (debug mode is off).");
+                    return;
+                }
+
+                if (__instance?.BotZones == null || __instance.BotZones.Length == 0)
+                {
+                    Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in LocationScene.");
+                    return;
+                }
+
+                string context = FikaBackendUtils.IsHeadless ? "[Headless Host]" :
+                                 FikaBackendUtils.IsServer ? "[FIKA Server]" :
+                                 "[Client]";
+
+                Plugin.LogSource.LogInfo($"{context} [BotZoneDumper] Dumping {__instance.BotZones.Length} BotZones:");
+
+                foreach (var botZone in __instance.BotZones)
+                {
+                    if (botZone == null)
+                    {
+                        Plugin.LogSource.LogWarning($"{context} [BotZoneDumper] Skipping null BotZone.");
+                        continue;
+                    }
+
+                    string zoneName = "Unnamed";
+                    string id = "Unknown";
+                    string pos = "N/A";
+
+                    try
+                    {
+                        zoneName = string.IsNullOrWhiteSpace(botZone.NameZone) ? "Unnamed" : botZone.NameZone;
+                    }
+                    catch { }
+
+                    try
+                    {
+                        id = botZone.Id.ToString();
+                    }
+                    catch { id = "Unknown"; }
+
+
+                    try
+                    {
+                        if (botZone.transform != null)
+                        {
+                            var t = botZone.transform;
+                            pos = $"[{t.position.x:F1}, {t.position.y:F1}, {t.position.z:F1}]";
+                        }
+                    }
+                    catch { }
+
+                    Plugin.LogSource.LogInfo($"{context} [BotZoneDumper] Zone: '{zoneName}' | ID: {id} | Pos: {pos}");
+                }
             }
-
-            if (__instance?.BotZones == null || __instance.BotZones.Length == 0)
+            catch (Exception ex)
             {
-                Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in LocationScene.");
-                return;
-            }
-
-            string context = FikaBackendUtils.IsServer ? "[Headless Host]" : "[Client]";
-            Plugin.LogSource.LogInfo($"{context} [BotZoneDumper] Dumping {__instance.BotZones.Length} BotZones:");
-
-            foreach (var botZone in __instance.BotZones)
-            {
-                if (botZone == null)
-                    continue;
-
-                string zoneName = !string.IsNullOrWhiteSpace(botZone.NameZone) ? botZone.NameZone : "Unnamed";
-                Plugin.LogSource.LogInfo($"{context} [BotZoneDumper] BotZone: '{zoneName}' | ID: {botZone.Id}");
+                Plugin.LogSource.LogError($"[BotZoneDumper] Exception during BotZone dump: {ex}");
             }
         }
     }

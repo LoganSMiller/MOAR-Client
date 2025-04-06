@@ -6,6 +6,7 @@ using EFT.Game.Spawning;
 using HarmonyLib;
 using SPT.Reflection.Patching;
 using UnityEngine;
+using MOAR.Helpers;
 
 namespace MOAR.Patches
 {
@@ -23,8 +24,10 @@ namespace MOAR.Patches
         /// </summary>
         private static BotZone GetNearestZone(List<BotZone> zones, string fallbackName)
         {
-            return zones.FirstOrDefault(z => z.NameZone == fallbackName)
-                ?? zones[UnityEngine.Random.Range(0, zones.Count)];
+            return zones.FirstOrDefault(z => z?.NameZone == fallbackName && !z.IsNullOrDestroyed()) ??
+                   zones.Where(z => z != null && !z.IsNullOrDestroyed())
+                        .OrderBy(_ => Guid.NewGuid())
+                        .FirstOrDefault();
         }
 
         /// <summary>
@@ -89,9 +92,9 @@ namespace MOAR.Patches
                     regularZones.Add(marker.BotZone);
             }
 
-            if (snipeZones.Count == 0 || regularZones.Count == 0)
+            if (snipeZones.Count == 0 && regularZones.Count == 0)
             {
-                Plugin.LogSource.LogInfo("[SniperPatch] No valid snipe or regular zones found.");
+                Plugin.LogSource.LogWarning("[SniperPatch] No valid bot zones found. Skipping reassignment.");
                 return;
             }
 
@@ -106,24 +109,28 @@ namespace MOAR.Patches
                     continue;
 
                 string zoneName = GetBotZoneNameById(parameters, marker.Id);
+                bool isSnipeZone = IsSnipeZoneName(zoneName);
 
-                if (!snipeZones.Any(z => z.NameZone == zoneName) && !IsSnipeZoneName(zoneName))
+                if (!isSnipeZone || !snipeZones.Any(z => z.NameZone == zoneName))
                 {
-                    // Fallback to regular zone
                     var fallback = GetNearestZone(regularZones, zoneName);
-                    AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallback, -1);
-                    marker.BotZone = fallback;
+                    if (fallback != null)
+                    {
+                        AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallback, -1);
+                        marker.BotZone = fallback;
+                    }
                 }
                 else
                 {
-                    // Assign to sniper zone
-                    if (IsSnipeZoneName(zoneName))
-                        SetBotZoneName(parameters, marker.Id, string.Empty);
+                    SetBotZoneName(parameters, marker.Id, string.Empty); // clear old
 
                     var sniperZone = GetNearestZone(snipeZones, zoneName);
-                    int newMax = sniperZone.MaxPersons > 0 ? sniperZone.MaxPersons + 1 : 5;
-                    AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(sniperZone, newMax);
-                    marker.BotZone = sniperZone;
+                    if (sniperZone != null)
+                    {
+                        int newMax = sniperZone.MaxPersons > 0 ? sniperZone.MaxPersons + 1 : 5;
+                        AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(sniperZone, newMax);
+                        marker.BotZone = sniperZone;
+                    }
                 }
             }
 
