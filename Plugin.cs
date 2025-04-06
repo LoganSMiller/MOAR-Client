@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
@@ -11,13 +10,15 @@ using Fika.Core;
 using Fika.Core.Coop.Utils;
 using Fika.Core.Modding;
 using Fika.Core.Modding.Events;
+using Fika.Core.Networking;
 using HarmonyLib;
 using LiteNetLib;
 using MOAR.Components.Notifications;
 using MOAR.Helpers;
-using MOAR.Networking;
 using MOAR.Packets;
 using MOAR.Patches;
+using UnityEngine;
+using Random = System.Random;
 
 namespace MOAR
 {
@@ -27,11 +28,10 @@ namespace MOAR
     {
         public static Plugin Instance { get; private set; }
         public static ManualLogSource LogSource;
-        private static bool _initialized = false;
-        public static readonly string Version = "1.0.0"; // Used in PresetSyncPacket
+        public static readonly string Version = "1.0.0";
 
-        // Prevent ambiguity with UnityEngine.Random
-        private static readonly System.Random _rng = new();
+        private static readonly Random _rng = new();
+        private static bool _initialized;
 
         private void Awake()
         {
@@ -57,7 +57,7 @@ namespace MOAR
                 if (Settings.IsFika)
                 {
                     DebugNotification.RegisterNetworkHandler();
-                    MOARSync.RegisterFikaEventListeners(); // Lifecycle-safe FIKA hooks
+                    RegisterFikaEventListeners();
                 }
 
                 Logger.LogInfo("[MOAR] Initialization complete.");
@@ -72,28 +72,12 @@ namespace MOAR
         {
             try
             {
-                if (Settings.IsFika && FikaBackendUtils.IsServer)
-                    StartCoroutine(WaitThenBroadcastPreset());
-
                 Logger.LogInfo("[MOAR] Start complete.");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"[MOAR] Start failed: {ex}");
             }
-        }
-
-        private IEnumerator WaitThenBroadcastPreset()
-        {
-            LogSource.LogInfo("[MOAR] Waiting for FIKA server to be ready before sync...");
-
-            while (!Singleton<Fika.Core.Networking.FikaServer>.Instantiated)
-                yield return null;
-
-            BroadcastPresetToClients(
-                Settings.currentPreset?.Value ?? "live-like",
-                Routers.GetAnnouncePresetLabel()
-            );
         }
 
         private void Update()
@@ -133,7 +117,7 @@ namespace MOAR
 
             var notification = new DebugNotification
             {
-                Notification = $"Current preset is {label}{GetFlairMessage()}",
+                Notification = $"Current preset is {label}",
                 NotificationIcon = ENotificationIconType.EntryPoint
             };
 
@@ -160,53 +144,50 @@ namespace MOAR
                 notification.BroadcastToClients();
         }
 
-        private static void BroadcastPresetToClients(string presetName, string presetLabel)
+        private static void RegisterFikaEventListeners()
         {
-            if (!Settings.IsFika || !FikaBackendUtils.IsServer)
+            // Subscribing to the correct event class `PeerConnectedEvent`
+            FikaEventDispatcher.SubscribeEvent<PeerConnectedEvent>(OnPeerConnected);
+        }
+
+        private static void OnPeerConnected(PeerConnectedEvent ev)
+        {
+            if (!FikaBackendUtils.IsServer || ev?.Peer == null)
                 return;
 
             try
             {
+                // Getting current preset name and label
+                string presetName = Settings.GetCurrentPresetName();
+                string presetLabel = Settings.GetCurrentPresetLabel();
+
+                // Creating a packet to sync the preset
                 var packet = new PresetSyncPacket(presetName, presetLabel);
 
-                if (Singleton<Fika.Core.Networking.FikaServer>.Instantiated)
+                // Sending the packet to the peer using FikaServer
+                if (Singleton<FikaServer>.Instantiated)
                 {
-                    Singleton<Fika.Core.Networking.FikaServer>.Instance.SendDataToAll(ref packet, DeliveryMethod.ReliableUnordered);
-                    LogSource.LogInfo($"[MOAR] Broadcasted preset sync to all peers: {presetLabel} ({presetName})");
+                    Singleton<FikaServer>.Instance.SendDataToPeer(ev.Peer, ref packet, DeliveryMethod.ReliableUnordered);
+                    LogSource.LogInfo($"[MOAR] [SYNC] Sent PresetSyncPacket to peer {ev.Peer.Id}: {presetLabel} ({presetName})");
                 }
                 else
                 {
-                    LogSource.LogWarning("[MOAR] FikaServer not instantiated; unable to broadcast.");
+                    LogSource.LogWarning("[MOAR] [SYNC] FikaServer not instantiated, unable to send preset.");
                 }
             }
             catch (Exception ex)
             {
-                LogSource.LogError($"[MOAR] BroadcastPresetToClients failed: {ex.Message}");
+                LogSource.LogError($"[MOAR] [SYNC] Failed to send preset to peer: {ex}");
             }
-        }
-
-        private static void EnablePatches()
-        {
-            new SniperPatch().Enable();
-            new AddEnemyPatch().Enable();
-            new NotificationPatch().Enable();
-
-            if (Settings.enablePointOverlay.Value)
-                new OnGameStartedPatch().Enable();
         }
 
         public static string GetFlairMessage()
         {
             var suffixes = new List<string>
             {
-                ", good luck!",
-                ", may the bots ever be in your favour.",
-                ", you're probably screwed.",
-                ", enjoy the dumpster fire.",
-                ", hope you brought snacks.",
-                ", prepare to be crushed.",
-                ", try not to rage-quit.",
-                ", it's going to be a long day for you.",
+                ", good luck!", ", may the bots ever be in your favour.", ", you're probably screwed.",
+                ", enjoy the dumpster fire.", ", hope you brought snacks.", ", prepare to be crushed.",
+                ", try not to rage-quit.", ", it's going to be a long day for you.",
                 ", let the feelings of dread pass over you."
             };
 

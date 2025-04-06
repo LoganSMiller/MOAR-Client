@@ -30,7 +30,7 @@ namespace MOAR.Networking
             Plugin.LogSource.LogInfo("[MOARSync] Registering FIKA lifecycle events...");
 
             FikaEventDispatcher.SubscribeEvent<FikaNetworkManagerCreatedEvent>(OnNetworkCreated);
-            FikaEventDispatcher.SubscribeEvent<PeerConnectedEvent>(OnPeerConnected);
+            FikaEventDispatcher.SubscribeEvent<PeerConnectedEvent>(OnPeerConnected);  // Subscribe to the correct event
             FikaEventDispatcher.SubscribeEvent<FikaRaidStartedEvent>(OnRaidStarted);
             FikaEventDispatcher.SubscribeEvent<FikaGameEndedEvent>(OnRaidEnded);
         }
@@ -52,15 +52,16 @@ namespace MOAR.Networking
             }
         }
 
+        // Updated to match the correct event handler
         private static void OnPeerConnected(PeerConnectedEvent ev)
         {
-            if (!FikaBackendUtils.IsServer)
+            if (!FikaBackendUtils.IsServer || ev?.Peer == null)
                 return;
 
             try
             {
-                var preset = Settings.currentPreset?.Value ?? "live-like";
-                var label = Routers.GetAnnouncePresetLabel();
+                var preset = Settings.currentPreset?.Value ?? "live-like";  // Get current preset
+                var label = Routers.GetAnnouncePresetLabel();  // Get preset label
                 var packet = new PresetSyncPacket(preset, label)
                 {
                     Version = Plugin.Version
@@ -68,6 +69,7 @@ namespace MOAR.Networking
 
                 Plugin.LogSource.LogInfo($"[MOARSync] Peer {ev.Peer.Id} connected — syncing preset '{label}'");
 
+                // Send the preset sync packet to the connected peer
                 Singleton<FikaServer>.Instance.SendDataToPeer(ev.Peer, ref packet, DeliveryMethod.ReliableUnordered);
             }
             catch (Exception ex)
@@ -109,7 +111,7 @@ namespace MOAR.Networking
             if (_clientOverrides.TryGetValue("preset", out var overridden))
             {
                 _ignoreClientSettingChange = true;
-                Settings.currentPreset.SetSerializedValue(overridden);
+                Settings.currentPreset.SetSerializedValue(overridden);  // Apply the overridden preset
                 Plugin.LogSource.LogInfo($"[MOARSync] Overriding client preset with: {overridden}");
                 _ignoreClientSettingChange = false;
             }
