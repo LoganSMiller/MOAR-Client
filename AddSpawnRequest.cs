@@ -30,7 +30,7 @@ namespace MOAR.Data
         /// </summary>
         public void Normalize()
         {
-            Map = Map?.Trim() ?? "Unknown";
+            Map = string.IsNullOrWhiteSpace(Map) ? "Unknown" : Map.Trim();
             Position ??= new Ixyz();
         }
 
@@ -39,7 +39,8 @@ namespace MOAR.Data
         /// </summary>
         public bool IsValid()
         {
-            return !string.IsNullOrWhiteSpace(Map) && Position is { X: not 0, Y: not 0, Z: not 0 };
+            return !string.IsNullOrWhiteSpace(Map) &&
+                   Position is { X: not 0, Y: not 0, Z: not 0 };
         }
     }
 }

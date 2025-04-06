@@ -4,12 +4,11 @@ using System.Threading.Tasks;
 using Comfort.Common;
 using EFT;
 using EFT.Communications;
-using MOAR.Packets;
 using MOAR.Data;
+using MOAR.Helpers;
+using MOAR.Components.Notifications;
 using SPT.Reflection.Utils;
 using UnityEngine;
-using MOAR.Components.Notifications;
-using MOAR.Helpers;
 
 namespace MOAR.Helpers
 {
@@ -20,14 +19,14 @@ namespace MOAR.Helpers
     public static class Methods
     {
         /// <summary>
-        /// Displays a local notification and optionally broadcasts across FIKA if server.
-        /// Always safe for use in singleplayer, host, client, or headless.
+        /// Displays a local notification and optionally broadcasts across FIKA if on the server.
+        /// Always safe for singleplayer, host, client, or headless modes.
         /// </summary>
         public static void DisplayMessage(string message, ENotificationIconType icon = ENotificationIconType.Quest)
         {
             if (string.IsNullOrWhiteSpace(message))
             {
-                Plugin.LogSource.LogWarning("[DisplayMessage] Tried to show null or empty message.");
+                Plugin.LogSource.LogWarning("[DisplayMessage] Tried to display null or empty message.");
                 return;
             }
 
@@ -39,10 +38,8 @@ namespace MOAR.Helpers
                     NotificationIcon = icon
                 };
 
-                // Always show locally
                 notification.Display();
 
-                // If FIKA server or host, propagate to clients
                 if (Settings.IsFika && Fika.Core.Coop.Utils.FikaBackendUtils.IsServer)
                 {
                     notification.BroadcastToClients();
@@ -50,12 +47,13 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[DisplayMessage] Exception: {ex}");
+                Plugin.LogSource.LogError($"[DisplayMessage] Exception during message broadcast: {ex}");
             }
         }
 
         /// <summary>
-        /// Refreshes the location backend info for the current session (safe async).
+        /// Safely refreshes level settings from the backend session.
+        /// Used for reinitializing spawn context or player state.
         /// </summary>
         public static async Task RefreshLocationInfo()
         {
@@ -67,17 +65,17 @@ namespace MOAR.Helpers
                 }
                 else
                 {
-                    Plugin.LogSource.LogWarning("[RefreshLocationInfo] Backend session unavailable.");
+                    Plugin.LogSource.LogWarning("[RefreshLocationInfo] Backend session is unavailable.");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[RefreshLocationInfo] Failed to refresh: {ex}");
+                Plugin.LogSource.LogError($"[RefreshLocationInfo] Exception while refreshing location info: {ex}");
             }
         }
 
         /// <summary>
-        /// Gets the player's coordinates and location for use with bot spawn placement tools.
+        /// Retrieves the player's current position and map name, used for adding spawn points.
         /// </summary>
         public static AddSpawnRequest GetPlayersCoordinatesAndLevel()
         {
@@ -106,27 +104,27 @@ namespace MOAR.Helpers
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Exception: {ex}");
+                Plugin.LogSource.LogError($"[GetPlayersCoordinatesAndLevel] Exception occurred: {ex}");
                 return new AddSpawnRequest { Map = "Unknown", Position = new Ixyz() };
             }
         }
 
         /// <summary>
-        /// Checks for manual announce key and displays current preset if pressed.
-        /// Safe in any runtime state.
+        /// Evaluates if the announce key was just pressed and manually shows the current preset.
+        /// Safe in all runtime states and environments.
         /// </summary>
         public static void CheckAnnounceKey()
         {
             try
             {
-                if (MOAR.Helpers.ConfigEntryExtensions.BetterIsDown(Settings.AnnounceKey.Value))
+                if (UIUtils.BetterIsDown(Settings.AnnounceKey.Value))
                 {
                     Settings.AnnounceManually();
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[CheckAnnounceKey] Failed to announce: {ex}");
+                Plugin.LogSource.LogError($"[CheckAnnounceKey] Failed to trigger manual preset announce: {ex}");
             }
         }
     }

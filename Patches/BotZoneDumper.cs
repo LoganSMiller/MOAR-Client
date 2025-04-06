@@ -11,7 +11,7 @@ namespace MOAR.Patches
 {
     /// <summary>
     /// Dumps all BotZone data to the log during LocationScene.Awake.
-    /// Useful for spawn zone debugging across hosts, clients, and headless.
+    /// Useful for spawn zone debugging across host, client, and headless modes.
     /// </summary>
     public class BotZoneDumper : ModulePatch
     {
@@ -23,15 +23,16 @@ namespace MOAR.Patches
         {
             if (!Settings.debug.Value)
             {
-                Plugin.LogSource.LogDebug("[BotZoneDumper] Debug is disabled — skipping BotZone dump.");
+                Plugin.LogSource.LogDebug("[BotZoneDumper] Debug disabled — skipping zone dump.");
                 return;
             }
 
             try
             {
-                if (__instance?.BotZones == null || __instance.BotZones.Length == 0)
+                var zones = __instance?.BotZones;
+                if (zones == null || zones.Length == 0)
                 {
-                    Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in scene.");
+                    Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in current scene.");
                     return;
                 }
 
@@ -40,9 +41,9 @@ namespace MOAR.Patches
                              FikaBackendUtils.IsClient ? "[FIKA Client]" :
                              "[SPT Offline]";
 
-                Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Dumping {__instance.BotZones.Length} BotZones...");
+                Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Dumping {zones.Length} BotZones...");
 
-                foreach (var zone in __instance.BotZones)
+                foreach (var zone in zones)
                 {
                     if (zone == null)
                     {
@@ -50,31 +51,18 @@ namespace MOAR.Patches
                         continue;
                     }
 
-                    string name = "[Unnamed]";
-                    string id = "[No ID]";
-                    string pos = "[No Position]";
-
-                    try { name = string.IsNullOrWhiteSpace(zone.NameZone) ? "[Unnamed]" : zone.NameZone; } catch { }
-                    try {
-                        id = zone.Id.ToString();
-                    }
-                    catch { }
-                    try
-                    {
-                        if (zone.transform != null)
-                        {
-                            Vector3 p = zone.transform.position;
-                            pos = $"[{p.x:F1}, {p.y:F1}, {p.z:F1}]";
-                        }
-                    }
-                    catch { }
+                    string name = zone.NameZone ?? "[Unnamed]";
+                    string id = zone.Id != 0 ? zone.Id.ToString() : "[No ID]";
+                    string pos = zone.transform != null
+                        ? $"[{zone.transform.position.x:F1}, {zone.transform.position.y:F1}, {zone.transform.position.z:F1}]"
+                        : "[No Position]";
 
                     Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Zone: \"{name}\" | ID: {id} | Pos: {pos}");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[BotZoneDumper] Exception during zone dump: {ex}");
+                Plugin.LogSource.LogError($"[BotZoneDumper] Exception while dumping zones:\n{ex}");
             }
         }
     }

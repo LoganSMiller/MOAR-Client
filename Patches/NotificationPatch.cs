@@ -22,7 +22,7 @@ namespace MOAR.Patches
                 "Show",
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy,
                 null,
-                new Type[] { typeof(MatchmakerTimeHasCome.TimeHasComeScreenClass) },
+                new[] { typeof(MatchmakerTimeHasCome.TimeHasComeScreenClass) },
                 null
             );
         }
@@ -30,20 +30,19 @@ namespace MOAR.Patches
         [PatchPostfix]
         public static void Postfix()
         {
+            if (!Settings.ShowPresetOnRaidStart.Value)
+                return;
+
+            // Headless hosts shouldn't show UI
+            if (Settings.IsFika && FikaBackendUtils.IsHeadless)
+            {
+                Plugin.LogSource.LogDebug("[NotificationPatch] Skipped preset display — FIKA headless mode.");
+                return;
+            }
+
             try
             {
-                // Only show preset if enabled
-                if (!Settings.ShowPresetOnRaidStart.Value)
-                    return;
-
-                // Skip if FIKA is active and we are a headless host
-                if (Settings.IsFika && FikaBackendUtils.IsHeadless)
-                {
-                    Plugin.LogSource.LogDebug("[NotificationPatch] Skipped preset display — FIKA headless mode.");
-                    return;
-                }
-
-                string label = Routers.GetCurrentPresetLabel();
+                var label = Routers.GetCurrentPresetLabel();
                 if (!string.IsNullOrWhiteSpace(label))
                 {
                     Methods.DisplayMessage($"Live preset: {label}", ENotificationIconType.Quest);
@@ -56,7 +55,7 @@ namespace MOAR.Patches
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[NotificationPatch] Exception during notification display: {ex}");
+                Plugin.LogSource.LogError($"[NotificationPatch] Exception during preset display: {ex}");
             }
         }
     }

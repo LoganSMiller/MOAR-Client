@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
@@ -9,7 +8,6 @@ using EFT;
 using EFT.Communications;
 using Fika.Core.Coop.Utils;
 using HarmonyLib;
-using LiteNetLib;
 using MOAR.Components.Notifications;
 using MOAR.Helpers;
 using MOAR.Patches;
@@ -23,7 +21,7 @@ namespace MOAR
         public static Plugin Instance { get; private set; }
         public static ManualLogSource LogSource;
         private static readonly Random _rng = new();
-        private static bool _initialized = false;
+        private static bool _initialized;
 
         private void Awake()
         {
@@ -74,6 +72,10 @@ namespace MOAR
 
         private void Update()
         {
+            // Only run input logic in Coop server mode after hotkey bindings are ready
+            if (!Settings.IsFika || !FikaBackendUtils.IsServer || !Settings.AreHotkeysReady())
+                return;
+
             HandleInput();
         }
 
@@ -82,19 +84,19 @@ namespace MOAR
             if (!Settings.IsFika || !FikaBackendUtils.IsServer)
                 return;
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.DeleteBotSpawn.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.DeleteBotSpawn!.Value) && Singleton<GameWorld>.Instantiated)
                 AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddBotSpawn.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddBotSpawn!.Value) && Singleton<GameWorld>.Instantiated)
                 AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddSniperSpawn.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddSniperSpawn!.Value) && Singleton<GameWorld>.Instantiated)
                 AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddPlayerSpawn.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddPlayerSpawn!.Value) && Singleton<GameWorld>.Instantiated)
                 AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AnnounceKey.Value))
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AnnounceKey!.Value))
                 Settings.AnnounceManually();
         }
 
@@ -117,12 +119,14 @@ namespace MOAR
 
         private static void EnablePatches()
         {
-            new SniperPatch().Enable();
-            new AddEnemyPatch().Enable();
-            new NotificationPatch().Enable();
+            try { new SniperPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"SniperPatch failed: {ex.Message}"); }
+            try { new AddEnemyPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"AddEnemyPatch failed: {ex.Message}"); }
+            try { new NotificationPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"NotificationPatch failed: {ex.Message}"); }
 
-            if (Settings.enablePointOverlay.Value)
-                new OnGameStartedPatch().Enable();
+            if (Settings.enablePointOverlay?.Value == true)
+            {
+                try { new OnGameStartedPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"OnGameStartedPatch failed: {ex.Message}"); }
+            }
         }
 
         public static string GetFlairMessage()

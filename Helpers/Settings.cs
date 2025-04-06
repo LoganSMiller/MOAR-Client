@@ -71,8 +71,8 @@ namespace MOAR.Helpers
         public static ConfigEntry<KeyboardShortcut> AddSniperSpawn;
         public static ConfigEntry<KeyboardShortcut> AddPlayerSpawn;
 
-        public static bool IsFika;
-        public static ManualLogSource Log;
+        public static bool IsFika { get; private set; }
+        public static ManualLogSource Log { get; private set; }
 
         public static void Init(ConfigFile config)
         {
@@ -80,7 +80,11 @@ namespace MOAR.Helpers
             Log = Plugin.LogSource;
             IsFika = Chainloader.PluginInfos.ContainsKey("com.fika.core");
 
-            currentPreset = config.Bind("1. Main Settings", "Moar Preset", "live-like");
+            string[] availablePresets = Routers.GetPresetsList()?.Select(p => p.Name).ToArray()
+                                        ?? new[] { "live-like" };
+
+            currentPreset = config.Bind("1. Main Settings", "Moar Preset", "live-like",
+                new ConfigDescription("Preset to apply.", new AcceptableValueList<string>(availablePresets)));
 
             ShowPresetOnRaidStart = config.Bind("1. Main Settings", "Preset Announce On/Off", true);
             AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
@@ -100,6 +104,7 @@ namespace MOAR.Helpers
             pmcDifficulty = config.Bind("1. Main Settings", "PMC Difficulty", 0.6);
             scavDifficulty = config.Bind("1. Main Settings", "Scav Difficulty", 0.4);
 
+            // Reactive behavior
             currentPreset.SettingChanged += (_, _) => OnPresetChange();
             startingPmcs.SettingChanged += (_, _) => OnStartingPmcsChanged();
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
@@ -124,7 +129,9 @@ namespace MOAR.Helpers
 
         private static void OnPresetChange()
         {
-            if (_applyingPreset) return;
+            if (_applyingPreset)
+                return;
+
             _applyingPreset = true;
 
             try
@@ -147,6 +154,15 @@ namespace MOAR.Helpers
                 return;
 
             Methods.DisplayMessage($"Current preset: {GetCurrentPresetLabel()}", ENotificationIconType.Quest);
+        }
+
+        public static bool AreHotkeysReady()
+        {
+            return DeleteBotSpawn?.Value != null &&
+                   AddBotSpawn?.Value != null &&
+                   AddSniperSpawn?.Value != null &&
+                   AddPlayerSpawn?.Value != null &&
+                   AnnounceKey?.Value != null;
         }
     }
 

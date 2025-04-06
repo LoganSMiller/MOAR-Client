@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using BepInEx.Configuration;
+using BepInEx.Logging;
+using Fika.Core.Coop.Utils;
 using MOAR.Helpers;
 
 namespace MOAR
@@ -9,55 +11,109 @@ namespace MOAR
     /// </summary>
     public static class Routers
     {
+        private static readonly object _presetLock = new();
+        private static readonly ManualLogSource Log = Plugin.LogSource;
+
         private static ConfigSettings _serverSettings = new();
+
+        private static readonly List<Preset> _availablePresets = new()
+        {
+            new Preset { Name = "live-like" },
+            new Preset { Name = "hardcore" },
+            new Preset { Name = "relaxed" }
+        };
 
         /// <summary>
         /// Initializes router state based on current settings.
         /// </summary>
         public static void Init(ConfigFile config)
         {
-            // Nothing required here yet.
+            // Future initialization logic can go here.
         }
 
         /// <summary>
-        /// Returns the current preset label (same as name in simplified logic).
+        /// Gets the current active preset name (safe fallback).
         /// </summary>
-        public static string GetCurrentPresetLabel() => Settings.GetCurrentPresetLabel();
+        public static string GetCurrentPresetLabel()
+        {
+            return Settings.currentPreset?.Value ?? "live-like";
+        }
 
         /// <summary>
-        /// Returns the label used for announcements.
+        /// Gets the active label used for announcements.
         /// </summary>
-        public static string GetAnnouncePresetLabel() => Settings.GetCurrentPresetLabel();
+        public static string GetAnnouncePresetLabel()
+        {
+            return GetCurrentPresetLabel();
+        }
 
         /// <summary>
-        /// Sets the current preset (used by host or UI changes).
+        /// Updates the current preset if allowed by host role.
         /// </summary>
         public static void SetPreset(string name)
         {
+            if (Settings.IsFika && !FikaBackendUtils.IsServer)
+            {
+                Log.LogWarning("[MOAR] Ignored client-side preset change attempt in FIKA mode.");
+                return;
+            }
+
             Settings.currentPreset.Value = name;
+            Log.LogInfo($"[MOAR] Preset set to: {name}");
         }
 
         /// <summary>
-        /// Updates the displayed preset label (used only during host startup).
+        /// No-op — handled in Settings.cs via reactive event.
         /// </summary>
         public static void SetHostPresetLabel(string label)
         {
-            // No-op: handled automatically in Settings.cs
+            // Host label auto-managed.
         }
 
         /// <summary>
-        /// Returns a copy of the current default config.
+        /// Gets the current default configuration structure.
         /// </summary>
-        public static ConfigSettings GetDefaultConfig() => new();
+        public static ConfigSettings GetDefaultConfig()
+        {
+            return new ConfigSettings(); // Return new blank/default
+        }
 
         /// <summary>
-        /// Returns current server config (host authoritative).
+        /// Gets the current authoritative server config.
         /// </summary>
-        public static ConfigSettings GetServerConfigWithOverrides() => _serverSettings;
+        public static ConfigSettings GetServerConfigWithOverrides()
+        {
+            return _serverSettings;
+        }
 
+        /// <summary>
+        /// Fake message for UI button feedback.
+        /// </summary>
         public static string AddBotSpawn() => "[MOAR] Bot spawn added.";
+
         public static string AddSniperSpawn() => "[MOAR] Sniper spawn added.";
+
         public static string AddPlayerSpawn() => "[MOAR] Player spawn added.";
+
         public static string DeleteBotSpawn() => "[MOAR] Bot spawn deleted.";
+
+        /// <summary>
+        /// Returns list of presets safely (cloned).
+        /// </summary>
+        public static List<Preset> GetPresetsList()
+        {
+            lock (_presetLock)
+            {
+                return new List<Preset>(_availablePresets);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Represents a basic named preset option.
+    /// </summary>
+    public class Preset
+    {
+        public string Name { get; set; }
     }
 }

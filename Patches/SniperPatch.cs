@@ -4,71 +4,63 @@ using System.Linq;
 using System.Reflection;
 using EFT.Game.Spawning;
 using HarmonyLib;
+using MOAR.Helpers;
 using SPT.Reflection.Patching;
 using UnityEngine;
-using MOAR.Helpers;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Patch for properly assigning sniper spawn points to valid bot zones during spawn point initialization.
-    /// Ensures custom sniper zones are respected or fallback logic is used.
+    /// Reassigns sniper spawn points to valid BotZones after the spawn point manager initializes.
+    /// Ensures custom sniper zones are respected or fallback regular zones are used.
     /// </summary>
-    public class SniperPatch : ModulePatch
+    public sealed class SniperPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod() =>
             AccessTools.Method(typeof(SpawnPointManagerClass), "smethod_1");
 
-        /// <summary>
-        /// Returns the closest or randomly selected valid bot zone.
-        /// </summary>
-        private static BotZone GetNearestZone(List<BotZone> zones, string fallbackName)
+        /// <summary>Returns the closest or randomly selected valid bot zone.</summary>
+        private static BotZone? GetNearestZone(List<BotZone> zones, string fallbackName)
         {
             return zones.FirstOrDefault(z => z?.NameZone == fallbackName && !z.IsNullOrDestroyed()) ??
                    zones.Where(z => z != null && !z.IsNullOrDestroyed())
-                        .OrderBy(_ => Guid.NewGuid()) // Random fallback if no named match
+                        .OrderBy(_ => Guid.NewGuid())
                         .FirstOrDefault();
         }
 
-        /// <summary>
-        /// Determines if a zone name matches a sniper zone naming convention.
-        /// </summary>
+        /// <summary>Determines if a zone name fits sniper naming convention.</summary>
         private static bool IsSnipeZoneName(string name) =>
             !string.IsNullOrWhiteSpace(name) && name.ToLowerInvariant().Contains("custom_snipe");
 
-        /// <summary>
-        /// Retrieves the original bot zone name for a spawn point by ID.
-        /// </summary>
-        private static string GetBotZoneNameById(SpawnPointParams[] spawnPoints, string id)
+        /// <summary>Finds the original zone name assigned by ID.</summary>
+        private static string GetBotZoneNameById(SpawnPointParams[] points, string id)
         {
-            foreach (var point in spawnPoints)
+            foreach (var point in points)
             {
                 if (point.Id == id)
+                {
                     return point.BotZoneName ?? string.Empty;
+                }
             }
+
             return string.Empty;
         }
 
-        /// <summary>
-        /// Updates the bot zone name for a specific spawn point ID.
-        /// </summary>
-        private static void SetBotZoneName(SpawnPointParams[] spawnPoints, string id, string newName)
+        /// <summary>Updates bot zone name in-place via struct reassignment.</summary>
+        private static void SetBotZoneName(SpawnPointParams[] points, string id, string newName)
         {
-            for (int i = 0; i < spawnPoints.Length; i++)
+            for (int i = 0; i < points.Length; i++)
             {
-                if (spawnPoints[i].Id == id)
+                if (points[i].Id == id)
                 {
-                    var updated = spawnPoints[i];
+                    var updated = points[i];
                     updated.BotZoneName = newName;
-                    spawnPoints[i] = updated; // Struct reassignment required
+                    points[i] = updated;
                     return;
                 }
             }
         }
 
-        /// <summary>
-        /// Reassigns sniper points to valid BotZones after spawn points are built.
-        /// </summary>
         [PatchPostfix]
         private static void Postfix(ref SpawnPointMarker[] __result, SpawnPointParams[] parameters)
         {
@@ -105,27 +97,26 @@ namespace MOAR.Patches
                     marker.SpawnPoint.Categories.ContainPlayerCategory())
                     continue;
 
-                // Skip if marker already has a valid zone
+                // Skip already valid zones
                 if (marker.BotZone != null && !marker.BotZone.IsNullOrDestroyed())
                     continue;
 
-                string zoneName = GetBotZoneNameById(parameters, marker.Id);
-                bool isSnipeZone = IsSnipeZoneName(zoneName);
+                var zoneName = GetBotZoneNameById(parameters, marker.Id);
+                bool isSniper = IsSnipeZoneName(zoneName);
 
-                if (!isSnipeZone || !snipeZones.Any(z => z.NameZone == zoneName))
+                if (!isSniper || !snipeZones.Any(z => z.NameZone == zoneName))
                 {
                     var fallback = GetNearestZone(regularZones, zoneName);
                     if (fallback != null)
                     {
                         AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallback, -1);
                         marker.BotZone = fallback;
-
-                        Plugin.LogSource.LogDebug($"[SniperPatch] Assigned fallback regular zone '{fallback.NameZone}' to spawn point '{marker.Id}'");
+                        Plugin.LogSource.LogDebug($"[SniperPatch] Fallback regular zone '{fallback.NameZone}' assigned to '{marker.Id}'.");
                     }
                 }
                 else
                 {
-                    SetBotZoneName(parameters, marker.Id, string.Empty); // Clear old name if invalid
+                    SetBotZoneName(parameters, marker.Id, string.Empty);
 
                     var sniperZone = GetNearestZone(snipeZones, zoneName);
                     if (sniperZone != null)
@@ -133,13 +124,12 @@ namespace MOAR.Patches
                         int newMax = sniperZone.MaxPersons > 0 ? sniperZone.MaxPersons + 1 : 5;
                         AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(sniperZone, newMax);
                         marker.BotZone = sniperZone;
-
-                        Plugin.LogSource.LogDebug($"[SniperPatch] Assigned sniper zone '{sniperZone.NameZone}' to spawn point '{marker.Id}'");
+                        Plugin.LogSource.LogDebug($"[SniperPatch] Sniper zone '{sniperZone.NameZone}' assigned to '{marker.Id}'.");
                     }
                 }
             }
 
-            Plugin.LogSource.LogInfo("[SniperPatch] BotZone reassignment complete.");
+            Plugin.LogSource.LogInfo("[SniperPatch] Sniper zone assignment complete.");
         }
     }
 }

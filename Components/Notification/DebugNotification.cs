@@ -32,13 +32,26 @@ namespace MOAR.Components.Notifications
                 return;
             }
 
-            NotificationManagerClass.DisplayMessageNotification(
-                Notification,
-                ENotificationDurationType.Default,
-                NotificationIcon
-            );
+            if (!Singleton<NotificationManagerClass>.Instantiated || Singleton<NotificationManagerClass>.Instance == null)
+            {
+                Plugin.LogSource.LogDebug("[DebugNotification] Skipped local display — NotificationManager not available.");
+                return;
+            }
 
-            Plugin.LogSource.LogDebug($"[DebugNotification] Displayed locally: {Notification}");
+            try
+            {
+                NotificationManagerClass.DisplayMessageNotification(
+                    Notification,
+                    ENotificationDurationType.Default,
+                    NotificationIcon
+                );
+
+                Plugin.LogSource.LogDebug($"[DebugNotification] Displayed locally: {Notification}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[DebugNotification] Display failed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -102,13 +115,26 @@ namespace MOAR.Components.Notifications
                 return;
             }
 
-            NotificationManagerClass.DisplayMessageNotification(
-                packet.Message,
-                ENotificationDurationType.Default,
-                packet.Icon
-            );
+            if (!Singleton<NotificationManagerClass>.Instantiated || Singleton<NotificationManagerClass>.Instance == null)
+            {
+                Plugin.LogSource.LogDebug("[DebugNotification] Skipped remote display — NotificationManager not available.");
+                return;
+            }
 
-            Plugin.LogSource.LogDebug($"[DebugNotification] Displayed remote message: {packet.Message}");
+            try
+            {
+                NotificationManagerClass.DisplayMessageNotification(
+                    packet.Message,
+                    ENotificationDurationType.Default,
+                    packet.Icon
+                );
+
+                Plugin.LogSource.LogDebug($"[DebugNotification] Displayed remote message: {packet.Message}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogSource.LogError($"[DebugNotification] Remote display failed: {ex.Message}");
+            }
         }
 
         private DebugNotificationPacket BuildPacket()

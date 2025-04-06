@@ -12,7 +12,8 @@ namespace MOAR.Patches
 {
     /// <summary>
     /// Ensures each BotZone attaches a BotZoneRenderer for visual debugging.
-    /// Skips execution in headless mode or when overlay is disabled.
+    /// Skips in headless mode or if overlay is disabled in config.
+    /// Safe for FIKA host, client, headless, and solo SPT.
     /// </summary>
     public class BotZoneAwakePatch : ModulePatch
     {
@@ -25,40 +26,39 @@ namespace MOAR.Patches
         {
             if (__instance?.gameObject == null)
             {
-                Plugin.LogSource?.LogWarning("[BotZoneAwakePatch] BotZone or its GameObject is null — skipping.");
+                Plugin.LogSource?.LogWarning("[BotZoneAwakePatch] BotZone or GameObject is null — skipping.");
                 return;
             }
 
             if (FikaBackendUtils.IsHeadless)
             {
-                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Skipped — FIKA headless mode active.");
+                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Skipped in FIKA headless mode.");
                 return;
             }
 
             if (!Settings.enablePointOverlay.Value)
             {
-                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Skipped — Point overlay disabled in config.");
+                Plugin.LogSource?.LogDebug("[BotZoneAwakePatch] Point overlay disabled via config.");
                 return;
             }
 
             try
             {
-                string zoneName = "[Unknown]";
-                try { zoneName = __instance.NameZone ?? "[Unnamed]"; } catch { }
+                string zoneName = __instance.NameZone ?? "[Unnamed]";
 
                 if (!__instance.TryGetComponent<BotZoneRenderer>(out _))
                 {
                     __instance.gameObject.AddComponent<BotZoneRenderer>();
-                    Plugin.LogSource?.LogInfo($"[BotZoneAwakePatch] Attached BotZoneRenderer to zone: \"{zoneName}\"");
+                    Plugin.LogSource?.LogInfo($"[BotZoneAwakePatch] BotZoneRenderer attached to zone: \"{zoneName}\"");
                 }
                 else
                 {
-                    Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] BotZoneRenderer already exists on zone: \"{zoneName}\"");
+                    Plugin.LogSource?.LogDebug($"[BotZoneAwakePatch] Renderer already exists on zone: \"{zoneName}\"");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource?.LogError($"[BotZoneAwakePatch] Exception while attaching BotZoneRenderer: {ex}");
+                Plugin.LogSource?.LogError($"[BotZoneAwakePatch] Exception while attaching overlay:\n{ex}");
             }
         }
     }

@@ -13,7 +13,7 @@ namespace MOAR.Patches
 {
     /// <summary>
     /// Attaches a BotZoneRenderer to the GameWorld if enabled and in a compatible environment.
-    /// Allows visualization of spawn zones for debugging or live adjustment.
+    /// Prevents execution in FIKA headless mode and skips duplicate attachment.
     /// </summary>
     public sealed class OnGameStartedPatch : ModulePatch
     {
@@ -23,38 +23,38 @@ namespace MOAR.Patches
         [PatchPrefix]
         private static void Prefix(GameWorld __instance)
         {
+            if (__instance?.gameObject == null)
+            {
+                Plugin.LogSource?.LogWarning("[OnGameStartedPatch] GameWorld or GameObject was null. Skipping.");
+                return;
+            }
+
+            if (!Settings.enablePointOverlay.Value)
+            {
+                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Overlay disabled in config.");
+                return;
+            }
+
+            if (Settings.IsFika && FikaBackendUtils.IsHeadless)
+            {
+                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Skipping overlay — FIKA headless mode.");
+                return;
+            }
+
+            if (__instance.GetComponent<BotZoneRenderer>() != null)
+            {
+                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] BotZoneRenderer already present.");
+                return;
+            }
+
             try
             {
-                if (__instance == null || __instance.gameObject == null)
-                {
-                    Plugin.LogSource?.LogWarning("[OnGameStartedPatch] GameWorld or GameObject is null. Skipping overlay attach.");
-                    return;
-                }
-
-                if (!Settings.enablePointOverlay.Value)
-                {
-                    Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Point overlay disabled in config.");
-                    return;
-                }
-
-                if (Settings.IsFika && FikaBackendUtils.IsHeadless)
-                {
-                    Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Skipping overlay in FIKA headless mode.");
-                    return;
-                }
-
-                if (__instance.GetComponent<BotZoneRenderer>() != null)
-                {
-                    Plugin.LogSource?.LogDebug("[OnGameStartedPatch] BotZoneRenderer already attached. No action taken.");
-                    return;
-                }
-
                 __instance.gameObject.AddComponent<BotZoneRenderer>();
-                Plugin.LogSource?.LogInfo("[OnGameStartedPatch] BotZoneRenderer successfully attached to GameWorld.");
+                Plugin.LogSource?.LogInfo("[OnGameStartedPatch] BotZoneRenderer attached successfully.");
             }
             catch (Exception ex)
             {
-                Plugin.LogSource?.LogError($"[OnGameStartedPatch] Exception while attaching overlay: {ex}");
+                Plugin.LogSource?.LogError($"[OnGameStartedPatch] Failed to attach BotZoneRenderer: {ex}");
             }
         }
     }

@@ -9,70 +9,86 @@ namespace MOAR
     [Serializable]
     public class ConfigSettings
     {
-        // --- Metadata ---
+        // === Metadata ===
+
+        /// <summary>Internal name identifier for the preset.</summary>
         public string Name { get; set; } = "live-like";
+
+        /// <summary>Friendly label shown in UI or logs.</summary>
         public string Label { get; set; } = "Live-Like";
-        public bool enableBotSpawning { get; set; } = true;
 
-        // --- AI Difficulty ---
-        public double pmcDifficulty { get; set; } = 0.6;
-        public double scavDifficulty { get; set; } = 0.4;
+        /// <summary>If false, disables all bot spawn logic.</summary>
+        public bool EnableBotSpawning { get; set; } = true;
 
-        // --- PMC Spawning ---
-        public double pmcWaveDistribution { get; set; } = 0.6;
-        public double pmcWaveQuantity { get; set; } = 1;
+        // === AI Difficulty ===
 
-        // --- Scav Spawning ---
-        public double scavWaveDistribution { get; set; } = 1;
-        public double scavWaveQuantity { get; set; } = 1;
+        public double PmcDifficulty { get; set; } = 0.6;
+        public double ScavDifficulty { get; set; } = 0.4;
 
-        // --- Zombie Behavior ---
-        public bool zombiesEnabled { get; set; } = false;
-        public double zombieWaveDistribution { get; set; } = 0.8;
-        public double zombieWaveQuantity { get; set; } = 1;
-        public double zombieHealth { get; set; } = 1;
+        // === PMC Spawning ===
 
-        // --- Spawn Logic ---
-        public bool startingPmcs { get; set; } = false;
-        public bool spawnSmoothing { get; set; } = true;
-        public bool randomSpawns { get; set; } = false;
-        public int spawnRadius { get; set; } = 20;
-        public int spawnDelay { get; set; } = 4;
-        public bool forceHotzonesOnly { get; set; } = false;
+        public double PmcWaveDistribution { get; set; } = 0.6;
+        public double PmcWaveQuantity { get; set; } = 1;
 
-        // --- Limits ---
-        public int maxBotCap { get; set; } = 20;
-        public int maxBotPerZone { get; set; } = 6;
+        // === Scav Spawning ===
 
-        // --- Group Chances ---
-        public double scavGroupChance { get; set; } = 0.2;
-        public double pmcGroupChance { get; set; } = 0.2;
-        public double sniperGroupChance { get; set; } = 0.1;
+        public double ScavWaveDistribution { get; set; } = 1.0;
+        public double ScavWaveQuantity { get; set; } = 1;
 
-        // --- Group Sizes ---
-        public int pmcMaxGroupSize { get; set; } = 4;
-        public int scavMaxGroupSize { get; set; } = 3;
-        public double sniperMaxGroupSize { get; set; } = 1;
+        // === Zombie Spawning ===
 
-        // --- Boss Spawning ---
-        public bool bossOpenZones { get; set; } = false;
-        public bool randomRaiderGroup { get; set; } = false;
-        public int randomRaiderGroupChance { get; set; } = 10;
-        public bool randomRogueGroup { get; set; } = false;
-        public int randomRogueGroupChance { get; set; } = 10;
-        public bool disableBosses { get; set; } = false;
-        public int mainBossChanceBuff { get; set; } = 0;
-        public bool bossInvasion { get; set; } = false;
-        public int bossInvasionSpawnChance { get; set; } = 5;
-        public bool gradualBossInvasion { get; set; } = true;
-        public bool enableBossOverrides { get; set; } = true;
+        public bool ZombiesEnabled { get; set; } = false;
+        public double ZombieWaveDistribution { get; set; } = 0.8;
+        public double ZombieWaveQuantity { get; set; } = 1;
+        public double ZombieHealth { get; set; } = 1;
 
-        // --- Debugging ---
-        public bool debug { get; set; } = false;
-        public bool logSpawnData { get; set; } = false;
-        public bool logBossOverrides { get; set; } = false;
+        // === Spawn Logic ===
+
+        public bool StartingPmcs { get; set; } = false;
+        public bool SpawnSmoothing { get; set; } = true;
+        public bool RandomSpawns { get; set; } = false;
+        public int SpawnRadius { get; set; } = 20;
+        public int SpawnDelay { get; set; } = 4;
+        public bool ForceHotzonesOnly { get; set; } = false;
+
+        // === Spawn Limits ===
+
+        public int MaxBotCap { get; set; } = 20;
+        public int MaxBotPerZone { get; set; } = 6;
+
+        // === Group Chances ===
+
+        public double ScavGroupChance { get; set; } = 0.2;
+        public double PmcGroupChance { get; set; } = 0.2;
+        public double SniperGroupChance { get; set; } = 0.1;
+
+        // === Group Sizes ===
+
+        public int PmcMaxGroupSize { get; set; } = 4;
+        public int ScavMaxGroupSize { get; set; } = 3;
+        public double SniperMaxGroupSize { get; set; } = 1;
+
+        // === Boss Spawning ===
+
+        public bool BossOpenZones { get; set; } = false;
+        public bool RandomRaiderGroup { get; set; } = false;
+        public int RandomRaiderGroupChance { get; set; } = 10;
+        public bool RandomRogueGroup { get; set; } = false;
+        public int RandomRogueGroupChance { get; set; } = 10;
+        public bool DisableBosses { get; set; } = false;
+        public int MainBossChanceBuff { get; set; } = 0;
+        public bool BossInvasion { get; set; } = false;
+        public int BossInvasionSpawnChance { get; set; } = 5;
+        public bool GradualBossInvasion { get; set; } = true;
+        public bool EnableBossOverrides { get; set; } = true;
+
+        // === Debugging ===
+
+        public bool Debug { get; set; } = false;
+        public bool LogSpawnData { get; set; } = false;
+        public bool LogBossOverrides { get; set; } = false;
 
         public override string ToString() =>
-            $"[Config] {Label} | Bots: {enableBotSpawning} | PMC Diff: {pmcDifficulty}, Scav Diff: {scavDifficulty}";
+            $"[Config] {Label} | Bots: {EnableBotSpawning} | PMC Diff: {PmcDifficulty}, Scav Diff: {ScavDifficulty}";
     }
 }
