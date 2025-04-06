@@ -1,4 +1,4 @@
-﻿// [Settings.cs] — Fully hardened for MOAR+FIKA
+﻿// [Settings.cs] — Fully hardened for MOAR + FIKA + headless-safe
 
 using System;
 using System.Collections.Generic;
@@ -89,15 +89,25 @@ namespace MOAR.Helpers
             Log = Plugin.LogSource;
             IsFika = Chainloader.PluginInfos.ContainsKey("com.fika.core");
 
-            Log.LogInfo("[Settings] Fetching remote config and presets...");
+            Log.LogInfo("[Settings] Fetching config and presets from server...");
 
-            ServerStoredDefaults = Routers.GetDefaultConfig() ?? new ConfigSettings();
-            ServerStoredValues = Routers.GetServerConfigWithOverrides();
-            PresetList = Routers.GetPresetsList() ?? new List<Preset>();
+            try
+            {
+                ServerStoredDefaults = Routers.GetDefaultConfig() ?? new ConfigSettings();
+                ServerStoredValues = Routers.GetServerConfigWithOverrides() ?? new ConfigSettings();
+                PresetList = Routers.GetPresetsList() ?? new List<Preset>();
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"[Settings] Failed to fetch remote config: {ex.Message}");
+                ServerStoredDefaults = new ConfigSettings();
+                ServerStoredValues = new ConfigSettings();
+                PresetList = new List<Preset>();
+            }
 
             if (PresetList.Count == 0)
             {
-                Log.LogWarning("[Settings] No presets found — creating fallback.");
+                Log.LogWarning("[Settings] No presets found — using fallback.");
                 PresetList.Add(new Preset { Name = "live-like", Label = "Live Like" });
             }
 
@@ -106,11 +116,9 @@ namespace MOAR.Helpers
 
             var selectedPreset = PresetList.FirstOrDefault(p =>
                 string.Equals(p.Label?.Trim(), liveLabel, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Name?.Trim(), liveLabel, StringComparison.OrdinalIgnoreCase))
-                ?? PresetList.FirstOrDefault(p => string.Equals(p.Name, fallbackPresetName, StringComparison.OrdinalIgnoreCase))
-                ?? PresetList.First();
-
-            Log.LogInfo($"[Settings] Selected preset: {selectedPreset?.Name}");
+                string.Equals(p.Name?.Trim(), liveLabel, StringComparison.OrdinalIgnoreCase)) ??
+                PresetList.FirstOrDefault(p => string.Equals(p.Name, fallbackPresetName, StringComparison.OrdinalIgnoreCase)) ??
+                PresetList.First();
 
             currentPreset = config.Bind("1. Main Settings", "Moar Preset",
                 selectedPreset?.Name ?? "live-like",
@@ -120,7 +128,7 @@ namespace MOAR.Helpers
             AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
             factionAggression = config.Bind("1. Main Settings", "Faction Based Aggression On/Off", false);
 
-            startingPmcs = config.Bind("1. Main Settings", "Starting PMCS On/Off", ServerStoredDefaults.startingPmcs);
+            startingPmcs = config.Bind("1. Main Settings", "Starting PMCs On/Off", ServerStoredDefaults.startingPmcs);
             spawnSmoothing = config.Bind("1. Main Settings", "Spawn Smoothing On/Off", ServerStoredDefaults.spawnSmoothing);
             randomSpawns = config.Bind("1. Main Settings", "Random Spawns On/Off", ServerStoredDefaults.randomSpawns);
             pmcDifficulty = config.Bind("1. Main Settings", "PMC Difficulty", ServerStoredDefaults.pmcDifficulty);
@@ -132,22 +140,22 @@ namespace MOAR.Helpers
             BindKeys();
 
             currentPreset.SettingChanged += (_, _) => OnPresetChange();
+            startingPmcs.SettingChanged += (_, _) => OnStartingPmcsChanged();
             spawnSmoothing.SettingChanged += (_, _) => OnStartingPmcsChanged();
             randomSpawns.SettingChanged += (_, _) => OnStartingPmcsChanged();
-            startingPmcs.SettingChanged += (_, _) => OnStartingPmcsChanged();
 
             if (!IsFika && ShowPresetOnRaidStart.Value && !FikaBackendUtils.IsHeadless)
             {
                 Methods.DisplayMessage($"Live preset: {selectedPreset?.Label ?? selectedPreset?.Name}", ENotificationIconType.Quest);
             }
 
-            Log.LogInfo("[Settings] Initialization complete.");
+            Log.LogInfo($"[Settings] Initialization complete. Selected preset: {selectedPreset?.Name}");
         }
 
-        private static void BindWaveSettings() { /* unchanged */ }
-        private static void BindBossSettings() { /* unchanged */ }
-        private static void BindDebugAndOverlay() { /* unchanged */ }
-        private static void BindKeys() { /* unchanged */ }
+        private static void BindWaveSettings() { /* Unchanged for now */ }
+        private static void BindBossSettings() { /* Unchanged for now */ }
+        private static void BindDebugAndOverlay() { /* Unchanged for now */ }
+        private static void BindKeys() { /* Unchanged for now */ }
 
         private static void OnPresetChange()
         {
@@ -208,7 +216,7 @@ namespace MOAR.Helpers
                 TrySet("pmcWaveQuantity", (double v) => pmcWaveQuantity.Value = v);
                 TrySet("pmcWaveDistribution", (double v) => pmcWaveDistribution.Value = v);
 
-                Log.LogInfo($"[Settings] Preset '{preset.Name}' applied.");
+                Log.LogInfo($"[Settings] Applied preset: {preset.Name}");
             }
             catch (Exception ex)
             {

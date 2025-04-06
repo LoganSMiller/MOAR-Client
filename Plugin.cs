@@ -27,9 +27,11 @@ namespace MOAR
     {
         public static Plugin Instance { get; private set; }
         public static ManualLogSource LogSource;
-        private static readonly Random _rng = new();
         private static bool _initialized = false;
         public static readonly string Version = "1.0.0"; // Used in PresetSyncPacket
+
+        // Prevent ambiguity with UnityEngine.Random
+        private static readonly System.Random _rng = new();
 
         private void Awake()
         {
@@ -55,7 +57,7 @@ namespace MOAR
                 if (Settings.IsFika)
                 {
                     DebugNotification.RegisterNetworkHandler();
-                    MOARSync.RegisterFikaEventListeners(); // Only lifecycle safe here
+                    MOARSync.RegisterFikaEventListeners(); // Lifecycle-safe FIKA hooks
                 }
 
                 Logger.LogInfo("[MOAR] Initialization complete.");
@@ -70,8 +72,6 @@ namespace MOAR
         {
             try
             {
-               
-
                 if (Settings.IsFika && FikaBackendUtils.IsServer)
                     StartCoroutine(WaitThenBroadcastPreset());
 
@@ -133,7 +133,7 @@ namespace MOAR
 
             var notification = new DebugNotification
             {
-                Notification = $"Current preset is {label}",
+                Notification = $"Current preset is {label}{GetFlairMessage()}",
                 NotificationIcon = ENotificationIconType.EntryPoint
             };
 
@@ -199,10 +199,15 @@ namespace MOAR
         {
             var suffixes = new List<string>
             {
-                ", good luck!", ", may the bots ever be in your favour.", ", you're probably screwed.",
-                ", enjoy the dumpster fire.", ", hope you brought snacks.", ", prepare to be crushed.",
-                ", try not to rage-quit.", ", it's going to be a long day for you.",
-                ", let the feelings of dread pass over you.",
+                ", good luck!",
+                ", may the bots ever be in your favour.",
+                ", you're probably screwed.",
+                ", enjoy the dumpster fire.",
+                ", hope you brought snacks.",
+                ", prepare to be crushed.",
+                ", try not to rage-quit.",
+                ", it's going to be a long day for you.",
+                ", let the feelings of dread pass over you."
             };
 
             return suffixes[_rng.Next(suffixes.Count)];
