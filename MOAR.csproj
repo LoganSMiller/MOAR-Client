@@ -116,6 +116,7 @@
     <Compile Include="Components\BotZoneRenderer.cs" />
     <Compile Include="Components\Notification\DebugNotification.cs" />
     <Compile Include="ConfigSettings.cs" />
+    <Compile Include="Helpers\EnumUtils.cs" />
     <Compile Include="Helpers\Methods.cs" />
     <Compile Include="Helpers\Routers.cs" />
     <Compile Include="Helpers\Settings.cs" />
