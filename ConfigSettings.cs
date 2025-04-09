@@ -11,13 +11,8 @@ namespace MOAR
     {
         // === Metadata ===
 
-        /// <summary>Internal name identifier for the preset.</summary>
         public string Name { get; set; } = "live-like";
-
-        /// <summary>Friendly label shown in UI or logs.</summary>
         public string Label { get; set; } = "Live-Like";
-
-        /// <summary>If false, disables all bot spawn logic.</summary>
         public bool EnableBotSpawning { get; set; } = true;
 
         // === AI Difficulty ===
@@ -40,7 +35,7 @@ namespace MOAR
         public bool ZombiesEnabled { get; set; } = false;
         public double ZombieWaveDistribution { get; set; } = 0.8;
         public double ZombieWaveQuantity { get; set; } = 1;
-        public double ZombieHealth { get; set; } = 1;
+        public double ZombieHealth { get; set; } = 100;
 
         // === Spawn Logic ===
 

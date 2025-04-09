@@ -1,35 +1,19 @@
 ﻿using System.Collections.Generic;
-using BepInEx.Configuration;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using BepInEx.Logging;
 using Fika.Core.Coop.Utils;
-using MOAR.Helpers;
+using MOAR;
 
 namespace MOAR
 {
     /// <summary>
-    /// Handles routing and interactions with config and in-game state.
+    /// Handles routing and interactions with preset settings and spawn interaction.
     /// </summary>
     public static class Routers
     {
-        private static readonly object _presetLock = new();
         private static readonly ManualLogSource Log = Plugin.LogSource;
-
-        private static ConfigSettings _serverSettings = new();
-
-        private static readonly List<Preset> _availablePresets = new()
-        {
-            new Preset { Name = "live-like" },
-            new Preset { Name = "hardcore" },
-            new Preset { Name = "relaxed" }
-        };
-
-        /// <summary>
-        /// Initializes router state based on current settings.
-        /// </summary>
-        public static void Init(ConfigFile config)
-        {
-            // Future initialization logic can go here.
-        }
 
         /// <summary>
         /// Gets the current active preset name (safe fallback).
@@ -40,7 +24,7 @@ namespace MOAR
         }
 
         /// <summary>
-        /// Gets the active label used for announcements.
+        /// Gets the label used for announcements or UI.
         /// </summary>
         public static string GetAnnouncePresetLabel()
         {
@@ -48,7 +32,7 @@ namespace MOAR
         }
 
         /// <summary>
-        /// Updates the current preset if allowed by host role.
+        /// Updates the current preset value (host/server only).
         /// </summary>
         public static void SetPreset(string name)
         {
@@ -62,58 +46,49 @@ namespace MOAR
             Log.LogInfo($"[MOAR] Preset set to: {name}");
         }
 
-        /// <summary>
-        /// No-op — handled in Settings.cs via reactive event.
-        /// </summary>
         public static void SetHostPresetLabel(string label)
         {
-            // Host label auto-managed.
+            // Reserved for future use if label sync needed.
         }
 
-        /// <summary>
-        /// Gets the current default configuration structure.
-        /// </summary>
-        public static ConfigSettings GetDefaultConfig()
-        {
-            return new ConfigSettings(); // Return new blank/default
-        }
-
-        /// <summary>
-        /// Gets the current authoritative server config.
-        /// </summary>
-        public static ConfigSettings GetServerConfigWithOverrides()
-        {
-            return _serverSettings;
-        }
-
-        /// <summary>
-        /// Fake message for UI button feedback.
-        /// </summary>
         public static string AddBotSpawn() => "[MOAR] Bot spawn added.";
-
         public static string AddSniperSpawn() => "[MOAR] Sniper spawn added.";
-
         public static string AddPlayerSpawn() => "[MOAR] Player spawn added.";
-
         public static string DeleteBotSpawn() => "[MOAR] Bot spawn deleted.";
 
         /// <summary>
-        /// Returns list of presets safely (cloned).
+        /// Requests the current preset list from server (FIKA-safe).
         /// </summary>
-        public static List<Preset> GetPresetsList()
+        public static async Task<List<Preset>> FetchPresetListFromServer()
         {
-            lock (_presetLock)
+            try
             {
-                return new List<Preset>(_availablePresets);
+                using var http = new HttpClient();
+                var json = await http.GetStringAsync("http://127.0.0.1:6969/moar/getPresets");
+                var result = JsonConvert.DeserializeObject<PresetsResponse>(json);
+                return result?.data?.ConvertAll(p => new Preset
+                {
+                    Name = p.Name,
+                    Label = p.Label,
+                    Enabled = true
+                }) ?? new List<Preset>();
+            }
+            catch (System.Exception ex)
+            {
+                Log.LogError($"[MOAR] Failed to fetch presets from server: {ex.Message}");
+                return new List<Preset>
+                {
+                    new() { Name = "live-like", Label = "Live-Like", Enabled = true }
+                };
             }
         }
     }
 
-    /// <summary>
-    /// Represents a basic named preset option.
-    /// </summary>
     public class Preset
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Label { get; set; } = "";
+        public string Description { get; set; } = "";
+        public bool Enabled { get; set; } = true;
     }
 }

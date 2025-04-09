@@ -1,5 +1,8 @@
-﻿using System;
+﻿#nullable enable
+#nullable enable
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -18,12 +21,13 @@ namespace MOAR
     [BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
-        public static Plugin Instance { get; private set; }
-        public static ManualLogSource LogSource;
+        public static Plugin? Instance { get; private set; }
+        public static ManualLogSource LogSource = null!;
         private static readonly Random _rng = new();
         private static bool _initialized;
+        private static bool _patched;
 
-        private void Awake()
+        private async void Awake()
         {
             if (_initialized)
             {
@@ -35,13 +39,11 @@ namespace MOAR
             Instance = this;
             LogSource = Logger;
 
-            Logger.LogInfo("[MOAR] Awake — Starting initialization");
+            Logger.LogInfo("[MOAR] Awake — Starting async initialization");
 
             try
             {
-                Settings.Init(Config);
-                Routers.Init(Config);
-
+                await Settings.InitAsync(Config);
                 new Harmony("com.moar.patches").PatchAll();
 
                 if (Settings.IsFika)
@@ -49,7 +51,7 @@ namespace MOAR
                     DebugNotification.RegisterNetworkHandler();
                 }
 
-                Logger.LogInfo("[MOAR] Initialization complete.");
+                Logger.LogInfo($"[MOAR] Initialization complete. Preset: {Settings.GetCurrentPresetName()}");
             }
             catch (Exception ex)
             {
@@ -72,28 +74,32 @@ namespace MOAR
 
         private void Update()
         {
-            // Only run input logic in Coop server mode after hotkey bindings are ready
-            if (!Settings.IsFika || !FikaBackendUtils.IsServer || !Settings.AreHotkeysReady())
-                return;
+            if (ShouldHandleInput())
+            {
+                HandleInput();
+            }
+        }
 
-            HandleInput();
+        private static bool ShouldHandleInput()
+        {
+            return Settings.IsFika
+                && FikaBackendUtils.IsServer
+                && Settings.AreHotkeysReady()
+                && Singleton<GameWorld>.Instantiated;
         }
 
         private static void HandleInput()
         {
-            if (!Settings.IsFika || !FikaBackendUtils.IsServer)
-                return;
-
-            if (ConfigEntryExtensions.BetterIsDown(Settings.DeleteBotSpawn!.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.DeleteBotSpawn!.Value))
                 AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddBotSpawn!.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddBotSpawn!.Value))
                 AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddSniperSpawn!.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddSniperSpawn!.Value))
                 AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddPlayerSpawn!.Value) && Singleton<GameWorld>.Instantiated)
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddPlayerSpawn!.Value))
                 AnnounceResult(Routers.AddPlayerSpawn(), "Added 1 player spawn point");
 
             if (ConfigEntryExtensions.BetterIsDown(Settings.AnnounceKey!.Value))
@@ -119,13 +125,28 @@ namespace MOAR
 
         private static void EnablePatches()
         {
-            try { new SniperPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"SniperPatch failed: {ex.Message}"); }
-            try { new AddEnemyPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"AddEnemyPatch failed: {ex.Message}"); }
-            try { new NotificationPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"NotificationPatch failed: {ex.Message}"); }
+            if (_patched) return;
+            _patched = true;
+
+            TryPatch("SniperPatch", () => new SniperPatch().Enable());
+            TryPatch("AddEnemyPatch", () => new AddEnemyPatch().Enable());
+            TryPatch("NotificationPatch", () => new NotificationPatch().Enable());
 
             if (Settings.enablePointOverlay?.Value == true)
             {
-                try { new OnGameStartedPatch().Enable(); } catch (Exception ex) { LogSource.LogWarning($"OnGameStartedPatch failed: {ex.Message}"); }
+                TryPatch("OnGameStartedPatch", () => new OnGameStartedPatch().Enable());
+            }
+        }
+
+        private static void TryPatch(string name, Action patchAction)
+        {
+            try
+            {
+                patchAction();
+            }
+            catch (Exception ex)
+            {
+                LogSource.LogWarning($"[MOAR] {name} failed: {ex.Message}");
             }
         }
 
@@ -133,9 +154,14 @@ namespace MOAR
         {
             var suffixes = new List<string>
             {
-                ", good luck!", ", may the bots ever be in your favour.", ", you're probably screwed.",
-                ", enjoy the dumpster fire.", ", hope you brought snacks.", ", prepare to be crushed.",
-                ", try not to rage-quit.", ", it's going to be a long day for you.",
+                ", good luck!",
+                ", may the bots ever be in your favour.",
+                ", you're probably screwed.",
+                ", enjoy the dumpster fire.",
+                ", hope you brought snacks.",
+                ", prepare to be crushed.",
+                ", try not to rage-quit.",
+                ", it's going to be a long day for you.",
                 ", let the feelings of dread pass over you."
             };
 

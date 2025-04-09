@@ -4,29 +4,29 @@ namespace MOAR.Data
 {
     /// <summary>
     /// Represents a spawn placement request sent to the MOAR server.
-    /// Contains the target map and the world position for creating a new spawn point.
+    /// Used for injecting new spawn points via live in-game commands.
     /// </summary>
     [Serializable]
     public class AddSpawnRequest
     {
         /// <summary>
         /// Map identifier (e.g., "Factory", "Woods", "Customs").
-        /// Used to route the spawn placement on the correct level.
+        /// Used to associate the spawn with the correct level.
         /// </summary>
         public string Map { get; set; } = "Unknown";
 
         /// <summary>
-        /// The 3D position where the bot or player spawn should be created.
+        /// World-space coordinates for the new spawn point.
         /// </summary>
         public Ixyz Position { get; set; } = new Ixyz();
 
         /// <summary>
-        /// Returns a string representation for logging or debugging.
+        /// Debug-friendly output.
         /// </summary>
         public override string ToString() => $"Map: {Map}, Position: {Position}";
 
         /// <summary>
-        /// Normalizes the request by trimming and validating fields.
+        /// Normalizes input values (trims, null checks).
         /// </summary>
         public void Normalize()
         {
@@ -35,12 +35,12 @@ namespace MOAR.Data
         }
 
         /// <summary>
-        /// Returns true if this request has a known map and a non-zero position.
+        /// Validates the request format.
         /// </summary>
         public bool IsValid()
         {
-            return !string.IsNullOrWhiteSpace(Map) &&
-                   Position is { X: not 0, Y: not 0, Z: not 0 };
+            return !string.IsNullOrWhiteSpace(Map)
+                   && Position is { X: not 0, Y: not 0, Z: not 0 };
         }
     }
 }

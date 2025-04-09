@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿#nullable enable
+using System.Collections.Generic;
 using System.Linq;
 using Comfort.Common;
 using EFT;
@@ -15,11 +16,13 @@ namespace MOAR.Components
     /// </summary>
     public class BotZoneRenderer : MonoBehaviour
     {
-        private static Player Player => Singleton<GameWorld>.Instance?.MainPlayer;
+        private static Player? Player => Singleton<GameWorld>.Instance?.MainPlayer;
 
         private readonly List<BotZone> _botZones = new();
         private readonly List<SpawnPointInfo> _spawnPointInfos = new();
-        private GUIStyle _guiStyle;
+
+        // ✅ Initialize to avoid CS8618
+        private GUIStyle _guiStyle = new();
         private float _screenScale = 1f;
 
         private void Awake()
@@ -35,15 +38,15 @@ namespace MOAR.Components
             {
                 float output = CameraClass.Instance.SSAA.GetOutputWidth();
                 float input = CameraClass.Instance.SSAA.GetInputWidth();
-                if (input > 0f) _screenScale = output / input;
+                if (input > 0f)
+                {
+                    _screenScale = output / input;
+                }
             }
 
             RefreshZones();
         }
 
-        /// <summary>
-        /// Rebuilds the zone and spawn point label data.
-        /// </summary>
         public void RefreshZones()
         {
             _botZones.Clear();
@@ -52,7 +55,9 @@ namespace MOAR.Components
             _botZones.AddRange(LocationScene.GetAllObjectsAndWhenISayAllIActuallyMeanIt<BotZone>());
 
             foreach (var zone in _botZones)
+            {
                 AddZoneSpawnPoints(zone);
+            }
 
             Plugin.LogSource.LogDebug($"[BotZoneRenderer] Refreshed {_spawnPointInfos.Count} spawn labels.");
         }
@@ -62,7 +67,8 @@ namespace MOAR.Components
             string zoneId = zone.Id.ToString();
             Color zoneColor = GenerateZoneColor(zoneId);
 
-            if (zone.SpawnPoints == null) return;
+            if (zone.SpawnPoints == null)
+                return;
 
             foreach (var point in zone.SpawnPoints)
             {
@@ -146,7 +152,8 @@ namespace MOAR.Components
     {
         public static string GetBotDebugName(this ISpawnPoint spawnPoint)
         {
-            if (spawnPoint == null) return "NullPoint";
+            if (spawnPoint == null)
+                return "NullPoint";
 
             var prop = spawnPoint.GetType().GetProperty("BotTemplateId");
             return prop?.GetValue(spawnPoint) as string ?? spawnPoint.ToString();

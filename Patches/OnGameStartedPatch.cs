@@ -12,8 +12,8 @@ using UnityEngine;
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Attaches a BotZoneRenderer to the GameWorld if enabled and in a compatible environment.
-    /// Prevents execution in FIKA headless mode and skips duplicate attachment.
+    /// Attaches a BotZoneRenderer to the GameWorld if enabled and not in headless FIKA mode.
+    /// Ensures that the overlay only exists once and does not run in invalid environments.
     /// </summary>
     public sealed class OnGameStartedPatch : ModulePatch
     {
@@ -23,38 +23,38 @@ namespace MOAR.Patches
         [PatchPrefix]
         private static void Prefix(GameWorld __instance)
         {
-            if (__instance?.gameObject == null)
+            if (!Singleton<GameWorld>.Instantiated || __instance == null)
             {
-                Plugin.LogSource?.LogWarning("[OnGameStartedPatch] GameWorld or GameObject was null. Skipping.");
+                Plugin.LogSource?.LogWarning($"[{nameof(OnGameStartedPatch)}] GameWorld not instantiated. Skipping.");
                 return;
             }
 
-            if (!Settings.enablePointOverlay.Value)
+            if (Settings.enablePointOverlay == null || !Settings.enablePointOverlay.Value)
             {
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Overlay disabled in config.");
+                Plugin.LogSource?.LogDebug($"[{nameof(OnGameStartedPatch)}] Point overlay disabled in config.");
                 return;
             }
 
             if (Settings.IsFika && FikaBackendUtils.IsHeadless)
             {
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] Skipping overlay — FIKA headless mode.");
+                Plugin.LogSource?.LogDebug($"[{nameof(OnGameStartedPatch)}] Skipping overlay — FIKA headless mode.");
                 return;
             }
 
             if (__instance.GetComponent<BotZoneRenderer>() != null)
             {
-                Plugin.LogSource?.LogDebug("[OnGameStartedPatch] BotZoneRenderer already present.");
+                Plugin.LogSource?.LogDebug($"[{nameof(OnGameStartedPatch)}] BotZoneRenderer already attached.");
                 return;
             }
 
             try
             {
                 __instance.gameObject.AddComponent<BotZoneRenderer>();
-                Plugin.LogSource?.LogInfo("[OnGameStartedPatch] BotZoneRenderer attached successfully.");
+                Plugin.LogSource?.LogInfo($"[{nameof(OnGameStartedPatch)}] BotZoneRenderer attached.");
             }
             catch (Exception ex)
             {
-                Plugin.LogSource?.LogError($"[OnGameStartedPatch] Failed to attach BotZoneRenderer: {ex}");
+                Plugin.LogSource?.LogError($"[{nameof(OnGameStartedPatch)}] Failed to attach BotZoneRenderer: {ex}");
             }
         }
     }

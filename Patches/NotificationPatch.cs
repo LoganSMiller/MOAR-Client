@@ -33,7 +33,7 @@ namespace MOAR.Patches
             if (!Settings.ShowPresetOnRaidStart.Value)
                 return;
 
-            // Headless hosts shouldn't show UI
+            // Prevent UI display in headless host environments
             if (Settings.IsFika && FikaBackendUtils.IsHeadless)
             {
                 Plugin.LogSource.LogDebug("[NotificationPatch] Skipped preset display — FIKA headless mode.");

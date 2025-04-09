@@ -39,7 +39,7 @@ namespace MOAR.Patches
                 var groupSide = __instance.Side;
                 var targetSide = person.Side;
 
-                //  Always allow aggression across factions or if one is a Scav
+                // Always allow if different factions or either side is a Scav
                 if (groupSide != targetSide || groupSide == EPlayerSide.Savage || targetSide == EPlayerSide.Savage)
                 {
                     if (Settings.debug.Value)
@@ -47,7 +47,7 @@ namespace MOAR.Patches
                     return true;
                 }
 
-                //  Same faction: check if aggression is allowed based on config or group size
+                // Same side (PMC) — check if they're solo or aggression is enabled
                 bool isSoloGroup = (__instance.GetAllMembers()?.Count ?? 0) <= 1;
                 bool shouldAggress = Settings.factionAggression.Value || isSoloGroup;
 
@@ -61,7 +61,7 @@ namespace MOAR.Patches
             catch (Exception ex)
             {
                 Plugin.LogSource.LogError($"[AddEnemyPatch] Exception occurred — fallback to default behavior:\n{ex}");
-                return true; // Always allow aggression on exception (safe fallback)
+                return true; // Safe fallback: allow aggression to avoid blocking logic
             }
         }
     }
