@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -9,6 +10,7 @@ using EFT.Communications;
 using Fika.Core.Coop.Utils;
 using MOAR.Helpers;
 using Newtonsoft.Json;
+using UnityEngine;
 
 namespace MOAR
 {
@@ -16,76 +18,38 @@ namespace MOAR
     {
         private static ConfigFile _config = null!;
         private static bool _applyingPreset = false;
-
-        // === Preset + UI ===
-        public static ConfigEntry<string> currentPreset = null!;
-        public static ConfigEntry<bool> ShowPresetOnRaidStart = null!;
-        public static ConfigEntry<KeyboardShortcut> AnnounceKey = null!;
-
-        // === Debug & Overlay ===
-        public static ConfigEntry<bool> debug = null!;
-        public static ConfigEntry<bool> factionAggression = null!;
-        public static ConfigEntry<bool> enablePointOverlay = null!;
-        public static ConfigEntry<bool> showConfigDebug = null!;
-        public static ConfigEntry<bool> allowDebugSpawns = null!;
-        public static ConfigEntry<bool> logPresetOnStart = null!;
-        public static ConfigEntry<bool> botConfigDebug = null!;
-
-        // === AI Difficulty ===
-        public static ConfigEntry<double> pmcDifficulty = null!;
-        public static ConfigEntry<double> scavDifficulty = null!;
-
-        // === Zombie Settings ===
-        public static ConfigEntry<bool> zombiesEnabled = null!;
-        public static ConfigEntry<double> zombieWaveDistribution = null!;
-        public static ConfigEntry<double> zombieWaveQuantity = null!;
-        public static ConfigEntry<double> zombieHealth = null!;
-
-        // === Wave Settings ===
-        public static ConfigEntry<double> scavWaveDistribution = null!;
-        public static ConfigEntry<double> scavWaveQuantity = null!;
-        public static ConfigEntry<double> pmcWaveDistribution = null!;
-        public static ConfigEntry<double> pmcWaveQuantity = null!;
-
-        // === Spawn Logic ===
-        public static ConfigEntry<bool> startingPmcs = null!;
-        public static ConfigEntry<bool> spawnSmoothing = null!;
-        public static ConfigEntry<bool> randomSpawns = null!;
-        public static ConfigEntry<int> maxBotCap = null!;
-        public static ConfigEntry<int> maxBotPerZone = null!;
-        public static ConfigEntry<int> spawnRadius = null!;
-        public static ConfigEntry<int> spawnDelay = null!;
-        public static ConfigEntry<bool> forceHotzonesOnly = null!;
-
-        // === Grouping ===
-        public static ConfigEntry<double> scavGroupChance = null!;
-        public static ConfigEntry<double> pmcGroupChance = null!;
-        public static ConfigEntry<double> sniperGroupChance = null!;
-        public static ConfigEntry<int> pmcMaxGroupSize = null!;
-        public static ConfigEntry<int> scavMaxGroupSize = null!;
-        public static ConfigEntry<double> sniperMaxGroupSize = null!;
-
-        // === Boss Logic ===
-        public static ConfigEntry<bool> bossOpenZones = null!;
-        public static ConfigEntry<bool> randomRaiderGroup = null!;
-        public static ConfigEntry<int> randomRaiderGroupChance = null!;
-        public static ConfigEntry<bool> randomRogueGroup = null!;
-        public static ConfigEntry<int> randomRogueGroupChance = null!;
-        public static ConfigEntry<bool> disableBosses = null!;
-        public static ConfigEntry<int> mainBossChanceBuff = null!;
-        public static ConfigEntry<bool> bossInvasion = null!;
-        public static ConfigEntry<int> bossInvasionSpawnChance = null!;
-        public static ConfigEntry<bool> gradualBossInvasion = null!;
-        public static ConfigEntry<bool> enableBossOverrides = null!;
-
-        // === Hotkeys ===
-        public static ConfigEntry<KeyboardShortcut> DeleteBotSpawn = null!;
-        public static ConfigEntry<KeyboardShortcut> AddBotSpawn = null!;
-        public static ConfigEntry<KeyboardShortcut> AddSniperSpawn = null!;
-        public static ConfigEntry<KeyboardShortcut> AddPlayerSpawn = null!;
-
-        public static bool IsFika { get; private set; }
+        public static bool IsInitialized { get; private set; } = false;
+        public static bool IsFika { get; private set; } = false;
         public static ManualLogSource Log { get; private set; } = null!;
+
+        // All config entries
+        public static ConfigEntry<string>? currentPreset;
+        public static ConfigEntry<bool>? ShowPresetOnRaidStart;
+        public static ConfigEntry<KeyboardShortcut>? AnnounceKey;
+
+        public static ConfigEntry<bool>? debug, factionAggression, enablePointOverlay, showConfigDebug,
+            allowDebugSpawns, logPresetOnStart, BotOwnerConfigDebug;
+
+        public static ConfigEntry<double>? pmcDifficulty, scavDifficulty;
+        public static ConfigEntry<bool>? zombiesEnabled;
+        public static ConfigEntry<double>? zombieWaveDistribution, zombieWaveQuantity, zombieHealth;
+
+        public static ConfigEntry<double>? scavWaveDistribution, scavWaveQuantity, pmcWaveDistribution, pmcWaveQuantity;
+
+        public static ConfigEntry<bool>? startingPmcs, spawnSmoothing, randomSpawns;
+        public static ConfigEntry<int>? maxBotOwnerCap, maxBotOwnerPerZone, spawnRadius, spawnDelay;
+        public static ConfigEntry<bool>? forceHotzonesOnly;
+
+        public static ConfigEntry<double>? scavGroupChance, pmcGroupChance, sniperGroupChance;
+        public static ConfigEntry<int>? pmcMaxGroupSize, scavMaxGroupSize;
+        public static ConfigEntry<double>? sniperMaxGroupSize;
+
+        public static ConfigEntry<bool>? bossOpenZones, randomRaiderGroup, randomRogueGroup, disableBosses,
+            bossInvasion, gradualBossInvasion, enableBossOverrides;
+
+        public static ConfigEntry<int>? randomRaiderGroupChance, randomRogueGroupChance, mainBossChanceBuff, bossInvasionSpawnChance;
+
+        public static ConfigEntry<KeyboardShortcut>? DeleteBotOwnerSpawn, AddBotOwnerSpawn, AddSniperSpawn, AddPlayerSpawn;
 
         public static async Task InitAsync(ConfigFile config)
         {
@@ -99,14 +63,14 @@ namespace MOAR
                 new ConfigDescription("Preset to apply.", new AcceptableValueList<string>(presetLabels.ToArray())));
 
             ShowPresetOnRaidStart = config.Bind("1. Main Settings", "Preset Announce On/Off", true);
-            AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(UnityEngine.KeyCode.End));
+            AnnounceKey = config.Bind("1. Main Settings", "Announce Key", new KeyboardShortcut(KeyCode.End));
             factionAggression = config.Bind("1. Main Settings", "Faction-Based Aggression", false);
             debug = config.Bind("1. Main Settings", "Debug Mode", false);
             enablePointOverlay = config.Bind("1. Main Settings", "Enable Spawn Overlay", true);
             showConfigDebug = config.Bind("1. Main Settings", "Show Config Debug", false);
             allowDebugSpawns = config.Bind("1. Main Settings", "Allow Debug Spawns", false);
             logPresetOnStart = config.Bind("1. Main Settings", "Log Preset On Start", false);
-            botConfigDebug = config.Bind("1. Main Settings", "Bot Config Debug", false);
+            BotOwnerConfigDebug = config.Bind("1. Main Settings", "BotOwner Config Debug", false);
 
             pmcDifficulty = config.Bind("AI", "PMC Difficulty", 0.6);
             scavDifficulty = config.Bind("AI", "Scav Difficulty", 0.4);
@@ -124,9 +88,8 @@ namespace MOAR
             startingPmcs = config.Bind("Spawns", "Starting PMCs Enabled", false);
             spawnSmoothing = config.Bind("Spawns", "Enable Smoothing", true);
             randomSpawns = config.Bind("Spawns", "Random Spawns Enabled", false);
-
-            maxBotCap = config.Bind("Spawns", "Max Bot Cap", 20);
-            maxBotPerZone = config.Bind("Spawns", "Max Bots Per Zone", 6);
+            maxBotOwnerCap = config.Bind("Spawns", "Max BotOwner Cap", 20);
+            maxBotOwnerPerZone = config.Bind("Spawns", "Max BotOwners Per Zone", 6);
             spawnRadius = config.Bind("Spawns", "Spawn Radius", 20);
             spawnDelay = config.Bind("Spawns", "Spawn Delay", 4);
             forceHotzonesOnly = config.Bind("Spawns", "Force Hotzones Only", false);
@@ -150,10 +113,12 @@ namespace MOAR
             gradualBossInvasion = config.Bind("Bosses", "Gradual Invasion", true);
             enableBossOverrides = config.Bind("Bosses", "Enable Boss Config Overrides", true);
 
-            DeleteBotSpawn = config.Bind("Hotkeys", "Delete Bot Spawn", new KeyboardShortcut(UnityEngine.KeyCode.Delete));
-            AddBotSpawn = config.Bind("Hotkeys", "Add Bot Spawn", new KeyboardShortcut(UnityEngine.KeyCode.Insert));
-            AddSniperSpawn = config.Bind("Hotkeys", "Add Sniper Spawn", new KeyboardShortcut(UnityEngine.KeyCode.F1));
-            AddPlayerSpawn = config.Bind("Hotkeys", "Add Player Spawn", new KeyboardShortcut(UnityEngine.KeyCode.F2));
+            DeleteBotOwnerSpawn = config.Bind("Hotkeys", "Delete BotOwner Spawn", new KeyboardShortcut(KeyCode.Delete));
+            AddBotOwnerSpawn = config.Bind("Hotkeys", "Add BotOwner Spawn", new KeyboardShortcut(KeyCode.Insert));
+            AddSniperSpawn = config.Bind("Hotkeys", "Add Sniper Spawn", new KeyboardShortcut(KeyCode.F1));
+            AddPlayerSpawn = config.Bind("Hotkeys", "Add Player Spawn", new KeyboardShortcut(KeyCode.F2));
+
+            IsInitialized = true;
 
             if (ShowPresetOnRaidStart.Value && (!IsFika || FikaBackendUtils.IsServer))
             {
@@ -167,14 +132,15 @@ namespace MOAR
         {
             try
             {
+                string host = "127.0.0.1:6969"; // fallback-safe, since this is local-only
                 using var http = new HttpClient();
-                var res = await http.GetStringAsync("http://127.0.0.1:6969/moar/getPresets");
-                var parsed = JsonConvert.DeserializeObject<PresetsResponse>(res);
+                string json = await http.GetStringAsync($"http://{host}/moar/getPresets");
+                var parsed = JsonConvert.DeserializeObject<PresetsResponse>(json);
                 return parsed?.data?.Select(p => p.Label).ToList() ?? new List<string> { "live-like" };
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[Settings] Failed to fetch presets: {ex.Message}");
+                Log.LogError($"[Settings] Failed to fetch presets: {ex.Message}");
                 return new List<string> { "live-like" };
             }
         }
@@ -184,7 +150,7 @@ namespace MOAR
 
         public static void AnnounceManually()
         {
-            if (IsFika && FikaBackendUtils.IsHeadless)
+            if (!IsInitialized || (IsFika && FikaBackendUtils.IsHeadless))
                 return;
 
             Methods.DisplayMessage($"Current preset: {GetCurrentPresetLabel()}", ENotificationIconType.Quest);
@@ -192,8 +158,9 @@ namespace MOAR
 
         public static bool AreHotkeysReady()
         {
-            return DeleteBotSpawn?.Value != null &&
-                   AddBotSpawn?.Value != null &&
+            return IsInitialized &&
+                   DeleteBotOwnerSpawn?.Value != null &&
+                   AddBotOwnerSpawn?.Value != null &&
                    AddSniperSpawn?.Value != null &&
                    AddPlayerSpawn?.Value != null &&
                    AnnounceKey?.Value != null;
@@ -216,4 +183,3 @@ namespace MOAR
         public static bool BetterIsDown(this KeyboardShortcut shortcut) => shortcut.IsDown();
     }
 }
-

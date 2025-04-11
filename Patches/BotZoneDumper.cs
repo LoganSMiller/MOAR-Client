@@ -10,10 +10,10 @@ using UnityEngine;
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Dumps all BotZone data to the log during LocationScene.Awake.
+    /// Dumps all BotOwnerZone data to the log during LocationScene.Awake.
     /// Useful for spawn zone debugging across host, client, and headless modes.
     /// </summary>
-    public class BotZoneDumper : ModulePatch
+    public class BotOwnerZoneDumper : ModulePatch
     {
         protected override MethodBase GetTargetMethod() =>
             AccessTools.Method(typeof(LocationScene), nameof(LocationScene.Awake));
@@ -23,16 +23,16 @@ namespace MOAR.Patches
         {
             if (!Settings.debug.Value)
             {
-                Plugin.LogSource.LogDebug("[BotZoneDumper] Debug disabled — skipping zone dump.");
+                Plugin.LogSource.LogDebug("[BotOwnerZoneDumper] Debug disabled — skipping zone dump.");
                 return;
             }
 
             try
             {
-                var zones = __instance?.BotZones;
+                var zones = __instance?.BotOwnerZones;
                 if (zones == null || zones.Length == 0)
                 {
-                    Plugin.LogSource.LogWarning("[BotZoneDumper] No BotZones found in current scene.");
+                    Plugin.LogSource.LogWarning("[BotOwnerZoneDumper] No BotOwnerZones found in current scene.");
                     return;
                 }
 
@@ -41,13 +41,13 @@ namespace MOAR.Patches
                              FikaBackendUtils.IsClient ? "[FIKA Client]" :
                              "[SPT Offline]";
 
-                Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Dumping {zones.Length} BotZones...");
+                Plugin.LogSource.LogInfo($"{ctx} [BotOwnerZoneDumper] Dumping {zones.Length} BotOwnerZones...");
 
                 foreach (var zone in zones)
                 {
                     if (zone == null)
                     {
-                        Plugin.LogSource.LogWarning($"{ctx} [BotZoneDumper] Skipped null BotZone.");
+                        Plugin.LogSource.LogWarning($"{ctx} [BotOwnerZoneDumper] Skipped null BotOwnerZone.");
                         continue;
                     }
 
@@ -57,12 +57,12 @@ namespace MOAR.Patches
                         ? $"[{zone.transform.position.x:F1}, {zone.transform.position.y:F1}, {zone.transform.position.z:F1}]"
                         : "[No Position]";
 
-                    Plugin.LogSource.LogInfo($"{ctx} [BotZoneDumper] Zone: \"{name}\" | ID: {id} | Pos: {pos}");
+                    Plugin.LogSource.LogInfo($"{ctx} [BotOwnerZoneDumper] Zone: \"{name}\" | ID: {id} | Pos: {pos}");
                 }
             }
             catch (Exception ex)
             {
-                Plugin.LogSource.LogError($"[BotZoneDumper] Exception while dumping zones:\n{ex}");
+                Plugin.LogSource.LogError($"[BotOwnerZoneDumper] Exception while dumping zones:\n{ex}");
             }
         }
     }

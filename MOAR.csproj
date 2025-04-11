@@ -96,6 +96,12 @@
     <Reference Include="UnityEngine">
       <HintPath>..\..\RLO\RealisticLighting\References\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.AIModule">
+      <HintPath>..\..\..\..\..\SPT\EscapeFromTarkov_Data\Managed\UnityEngine.AIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>..\..\..\..\..\SPT\EscapeFromTarkov_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\RLO\RealisticLighting\References\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
@@ -104,6 +110,9 @@
     </Reference>
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>..\..\RLO\RealisticLighting\References\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>..\..\..\..\..\SPT\EscapeFromTarkov_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>..\..\RLO\RealisticLighting\References\UnityEngine.TextRenderingModule.dll</HintPath>
@@ -114,14 +123,57 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddSpawnRequest.cs" />
+    <Compile Include="AI\BotBehaviorEnhancer.cs" />
+    <Compile Include="AI\BotCacheUtility.cs" />
+    <Compile Include="AI\BotCoverLogic.cs" />
+    <Compile Include="AI\BotFireLogic.cs" />
+    <Compile Include="AI\BotFlashlightEvadeComponent.cs" />
+    <Compile Include="AI\BotFlashReactionComponent.cs" />
+    <Compile Include="AI\BotGroupBehavior.cs" />
+    <Compile Include="AI\BotGroupSyncCoordinator.cs" />
+    <Compile Include="AI\BotLigthtSuppresionSystem.cs" />
+    <Compile Include="AI\BotMissionSystem.cs" />
+    <Compile Include="AI\BotOwnerZone.cs" />
+    <Compile Include="AI\BotPanicHandler.cs" />
+    <Compile Include="AI\BotPersonalityPresets.cs" />
+    <Compile Include="AI\BotSuppressionReactionComponent.cs" />
+    <Compile Include="AI\Extensions\BotMemoryExtensions.cs" />
+    <Compile Include="AI\FlashGrenadeComponent.cs" />
+    <Compile Include="AI\FlashlightRegistry.cs" />
+    <Compile Include="AI\FlashLightUtils.cs" />
+    <Compile Include="AI\HotspotSystem.cs" />
+    <Compile Include="AI\MOARBotOwner.cs" />
+    <Compile Include="AI\BotPanicController.cs" />
+    <Compile Include="AI\BotPanicUtility.cs" />
+    <Compile Include="AI\BotPerceptionSystem.cs" />
+    <Compile Include="AI\BotPersonalityProfile.cs" />
+    <Compile Include="AI\BotRegistry.cs" />
+    <Compile Include="AI\BotTeamLogic.cs" />
+    <Compile Include="AI\BotVisionController.cs" />
+    <Compile Include="AI\BotVisionProfile.cs" />
+    <Compile Include="AI\BotVisionSystem.cs" />
+    <Compile Include="AI\IFlashReactiveBot.cs" />
+    <Compile Include="AI\Optimization\BotAIController.cs" />
+    <Compile Include="AI\Optimization\BotAIOptimization.cs" />
+    <Compile Include="AI\Optimization\BotAsyncProcessor.cs" />
+    <Compile Include="AI\Optimization\BotComponentCache.cs" />
+    <Compile Include="AI\Optimization\BotGroupOptimization.cs" />
+    <Compile Include="AI\Optimization\BotPathfindingCache.cs" />
+    <Compile Include="AI\Optimization\BotState.cs" />
+    <Compile Include="AI\Optimization\BotStateCache.cs" />
     <Compile Include="Components\BotZoneRenderer.cs" />
+    <Compile Include="Components\Hooks\BotSpawnHook.cs" />
     <Compile Include="Components\Notification\DebugNotification.cs" />
     <Compile Include="ConfigSettings.cs" />
+    <Compile Include="Data\BotMemoryStore.cs" />
+    <Compile Include="Data\HotspotLoader.cs" />
+    <Compile Include="Helpers\BotSuppresionHelper.cs" />
     <Compile Include="Helpers\Methods.cs" />
     <Compile Include="Helpers\Routers.cs" />
     <Compile Include="Helpers\Settings.cs" />
     <Compile Include="Helpers\UIUtils.cs" />
     <Compile Include="Data\Ixyz.cs" />
+    <Compile Include="Hotspots\HotspotAssigner.cs" />
     <Compile Include="Packets\DebugNotificationPacket.cs" />
     <Compile Include="Patches\AddEnemyPatch.cs" />
     <Compile Include="Patches\BotZoneDumper.cs" />

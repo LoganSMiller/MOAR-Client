@@ -12,7 +12,7 @@ using UnityEngine;
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Attaches a BotZoneRenderer to the GameWorld if enabled and not in headless FIKA mode.
+    /// Attaches a BotOwnerZoneRenderer to the GameWorld if enabled and not in headless FIKA mode.
     /// Ensures that the overlay only exists once and does not run in invalid environments.
     /// </summary>
     public sealed class OnGameStartedPatch : ModulePatch
@@ -41,20 +41,20 @@ namespace MOAR.Patches
                 return;
             }
 
-            if (__instance.GetComponent<BotZoneRenderer>() != null)
+            if (__instance.GetComponent<BotOwnerZoneRenderer>() != null)
             {
-                Plugin.LogSource?.LogDebug($"[{nameof(OnGameStartedPatch)}] BotZoneRenderer already attached.");
+                Plugin.LogSource?.LogDebug($"[{nameof(OnGameStartedPatch)}] BotOwnerZoneRenderer already attached.");
                 return;
             }
 
             try
             {
-                __instance.gameObject.AddComponent<BotZoneRenderer>();
-                Plugin.LogSource?.LogInfo($"[{nameof(OnGameStartedPatch)}] BotZoneRenderer attached.");
+                __instance.gameObject.AddComponent<BotOwnerZoneRenderer>();
+                Plugin.LogSource?.LogInfo($"[{nameof(OnGameStartedPatch)}] BotOwnerZoneRenderer attached.");
             }
             catch (Exception ex)
             {
-                Plugin.LogSource?.LogError($"[{nameof(OnGameStartedPatch)}] Failed to attach BotZoneRenderer: {ex}");
+                Plugin.LogSource?.LogError($"[{nameof(OnGameStartedPatch)}] Failed to attach BotOwnerZoneRenderer: {ex}");
             }
         }
     }

@@ -13,7 +13,7 @@ namespace MOAR
 
         public string Name { get; set; } = "live-like";
         public string Label { get; set; } = "Live-Like";
-        public bool EnableBotSpawning { get; set; } = true;
+        public bool EnableBotOwnerSpawning { get; set; } = true;
 
         // === AI Difficulty ===
 
@@ -48,8 +48,8 @@ namespace MOAR
 
         // === Spawn Limits ===
 
-        public int MaxBotCap { get; set; } = 20;
-        public int MaxBotPerZone { get; set; } = 6;
+        public int MaxBotOwnerCap { get; set; } = 20;
+        public int MaxBotOwnerPerZone { get; set; } = 6;
 
         // === Group Chances ===
 
@@ -84,6 +84,6 @@ namespace MOAR
         public bool LogBossOverrides { get; set; } = false;
 
         public override string ToString() =>
-            $"[Config] {Label} | Bots: {EnableBotSpawning} | PMC Diff: {PmcDifficulty}, Scav Diff: {ScavDifficulty}";
+            $"[Config] {Label} | BotOwners: {EnableBotOwnerSpawning} | PMC Diff: {PmcDifficulty}, Scav Diff: {ScavDifficulty}";
     }
 }

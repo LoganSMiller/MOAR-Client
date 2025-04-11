@@ -7,11 +7,12 @@ using HarmonyLib;
 using MOAR.Helpers;
 using SPT.Reflection.Patching;
 using UnityEngine;
+using MOAR.AI;
 
 namespace MOAR.Patches
 {
     /// <summary>
-    /// Reassigns sniper spawn points to valid BotZones after initialization.
+    /// Reassigns sniper spawn points to valid BotOwnerZones after initialization.
     /// Ensures sniper zones are respected or falls back to usable zones if needed.
     /// </summary>
     public sealed class SniperPatch : ModulePatch
@@ -19,7 +20,7 @@ namespace MOAR.Patches
         protected override MethodBase GetTargetMethod() =>
             AccessTools.Method(typeof(SpawnPointManagerClass), "smethod_1");
 
-        private static BotZone? GetNearestZone(List<BotZone> zones, string fallbackName)
+        private static BotOwnerZone? GetNearestZone(List<BotOwnerZone> zones, string fallbackName)
         {
             return zones.FirstOrDefault(z => z?.NameZone == fallbackName && !z.IsNullOrDestroyed()) ??
                    zones.Where(z => z != null && !z.IsNullOrDestroyed())
@@ -30,27 +31,27 @@ namespace MOAR.Patches
         private static bool IsSnipeZoneName(string name) =>
             !string.IsNullOrWhiteSpace(name) && name.ToLowerInvariant().Contains("custom_snipe");
 
-        private static string GetBotZoneNameById(SpawnPointParams[] points, string id)
+        private static string GetBotOwnerZoneNameById(SpawnPointParams[] points, string id)
         {
             foreach (var point in points)
             {
                 if (point.Id == id)
                 {
-                    return point.BotZoneName ?? string.Empty;
+                    return point.BotOwnerZoneName ?? string.Empty;
                 }
             }
 
             return string.Empty;
         }
 
-        private static void SetBotZoneName(SpawnPointParams[] points, string id, string newName)
+        private static void SetBotOwnerZoneName(SpawnPointParams[] points, string id, string newName)
         {
             for (int i = 0; i < points.Length; i++)
             {
                 if (points[i].Id == id)
                 {
                     var updated = points[i];
-                    updated.BotZoneName = newName;
+                    updated.BotOwnerZoneName = newName;
                     points[i] = updated;
                     return;
                 }
@@ -66,23 +67,23 @@ namespace MOAR.Patches
                 return;
             }
 
-            var snipeZones = new List<BotZone>();
-            var regularZones = new List<BotZone>();
+            var snipeZones = new List<BotOwnerZone>();
+            var regularZones = new List<BotOwnerZone>();
 
             foreach (var marker in __result)
             {
-                if (marker?.BotZone == null || marker.BotZone.IsNullOrDestroyed())
+                if (marker?.BotOwnerZone == null || marker.BotOwnerZone.IsNullOrDestroyed())
                     continue;
 
-                if (marker.BotZone.SnipeZone)
-                    snipeZones.Add(marker.BotZone);
+                if (marker.BotOwnerZone.SnipeZone)
+                    snipeZones.Add(marker.BotOwnerZone);
                 else
-                    regularZones.Add(marker.BotZone);
+                    regularZones.Add(marker.BotOwnerZone);
             }
 
             if (snipeZones.Count == 0 && regularZones.Count == 0)
             {
-                Plugin.LogSource.LogWarning("[SniperPatch] No valid bot zones found. Skipping reassignment.");
+                Plugin.LogSource.LogWarning("[SniperPatch] No valid BotOwner zones found. Skipping reassignment.");
                 return;
             }
 
@@ -94,10 +95,10 @@ namespace MOAR.Patches
                     continue;
 
                 // Skip valid zones
-                if (marker.BotZone != null && !marker.BotZone.IsNullOrDestroyed())
+                if (marker.BotOwnerZone != null && !marker.BotOwnerZone.IsNullOrDestroyed())
                     continue;
 
-                var zoneName = GetBotZoneNameById(parameters, marker.Id);
+                var zoneName = GetBotOwnerZoneNameById(parameters, marker.Id);
                 bool isSniper = IsSnipeZoneName(zoneName);
 
                 if (!isSniper || !snipeZones.Any(z => z.NameZone == zoneName))
@@ -105,21 +106,21 @@ namespace MOAR.Patches
                     var fallback = GetNearestZone(regularZones, zoneName);
                     if (fallback != null)
                     {
-                        AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(fallback, -1);
-                        marker.BotZone = fallback;
+                        AccessTools.Field(typeof(BotOwnerZone), "_maxPersons").SetValue(fallback, -1);
+                        marker.BotOwnerZone = fallback;
                         Plugin.LogSource.LogDebug($"[SniperPatch] Fallback regular zone '{fallback.NameZone}' assigned to '{marker.Id}'");
                     }
                 }
                 else
                 {
-                    SetBotZoneName(parameters, marker.Id, string.Empty);
+                    SetBotOwnerZoneName(parameters, marker.Id, string.Empty);
 
                     var sniperZone = GetNearestZone(snipeZones, zoneName);
                     if (sniperZone != null)
                     {
                         int newMax = sniperZone.MaxPersons > 0 ? sniperZone.MaxPersons + 1 : 5;
-                        AccessTools.Field(typeof(BotZone), "_maxPersons").SetValue(sniperZone, newMax);
-                        marker.BotZone = sniperZone;
+                        AccessTools.Field(typeof(BotOwnerZone), "_maxPersons").SetValue(sniperZone, newMax);
+                        marker.BotOwnerZone = sniperZone;
                         Plugin.LogSource.LogDebug($"[SniperPatch] Sniper zone '{sniperZone.NameZone}' assigned to '{marker.Id}'");
                     }
                 }

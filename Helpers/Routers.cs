@@ -51,10 +51,10 @@ namespace MOAR
             // Reserved for future use if label sync needed.
         }
 
-        public static string AddBotSpawn() => "[MOAR] Bot spawn added.";
+        public static string AddBotOwnerSpawn() => "[MOAR] BotOwner spawn added.";
         public static string AddSniperSpawn() => "[MOAR] Sniper spawn added.";
         public static string AddPlayerSpawn() => "[MOAR] Player spawn added.";
-        public static string DeleteBotSpawn() => "[MOAR] Bot spawn deleted.";
+        public static string DeleteBotOwnerSpawn() => "[MOAR] BotOwner spawn deleted.";
 
         /// <summary>
         /// Requests the current preset list from server (FIKA-safe).

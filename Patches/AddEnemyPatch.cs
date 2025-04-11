@@ -11,17 +11,17 @@ namespace MOAR.Patches
     /// <summary>
     /// Prevents friendly PMCs from attacking each other unless:
     /// - factionAggression is enabled
-    /// - OR the bot is alone in its group
+    /// - OR the BotOwner is alone in its group
     /// Always allows aggression between different factions or when scavs are involved.
     /// Safe for all SPT and FIKA game modes (host/client/headless).
     /// </summary>
     public class AddEnemyPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod() =>
-            typeof(BotsGroup).GetMethod(nameof(BotsGroup.AddEnemy), BindingFlags.Instance | BindingFlags.Public);
+            typeof(BotOwnersGroup).GetMethod(nameof(BotOwnersGroup.AddEnemy), BindingFlags.Instance | BindingFlags.Public);
 
         [PatchPrefix]
-        private static bool PatchPrefix(BotsGroup __instance, IPlayer person, EBotEnemyCause cause)
+        private static bool PatchPrefix(BotOwnersGroup __instance, IPlayer person, EBotOwnerEnemyCause cause)
         {
             try
             {

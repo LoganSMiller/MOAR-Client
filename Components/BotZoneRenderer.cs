@@ -14,11 +14,11 @@ namespace MOAR.Components
     /// Renders real-time labels above spawn points for dev/debug use.
     /// Automatically disables in headless FIKA sessions.
     /// </summary>
-    public class BotZoneRenderer : MonoBehaviour
+    public class BotOwnerZoneRenderer : MonoBehaviour
     {
         private static Player? Player => Singleton<GameWorld>.Instance?.MainPlayer;
 
-        private readonly List<BotZone> _botZones = new();
+        private readonly List<BotOwnerZone> _BotOwnerZones = new();
         private readonly List<SpawnPointInfo> _spawnPointInfos = new();
 
         // ✅ Initialize to avoid CS8618
@@ -29,7 +29,7 @@ namespace MOAR.Components
         {
             if (Settings.IsFika && FikaBackendUtils.IsHeadless)
             {
-                Plugin.LogSource.LogInfo("[BotZoneRenderer] Skipped setup (headless mode).");
+                Plugin.LogSource.LogInfo("[BotOwnerZoneRenderer] Skipped setup (headless mode).");
                 Destroy(this);
                 return;
             }
@@ -49,20 +49,20 @@ namespace MOAR.Components
 
         public void RefreshZones()
         {
-            _botZones.Clear();
+            _BotOwnerZones.Clear();
             _spawnPointInfos.Clear();
 
-            _botZones.AddRange(LocationScene.GetAllObjectsAndWhenISayAllIActuallyMeanIt<BotZone>());
+            _BotOwnerZones.AddRange(LocationScene.GetAllObjectsAndWhenISayAllIActuallyMeanIt<BotOwnerZone>());
 
-            foreach (var zone in _botZones)
+            foreach (var zone in _BotOwnerZones)
             {
                 AddZoneSpawnPoints(zone);
             }
 
-            Plugin.LogSource.LogDebug($"[BotZoneRenderer] Refreshed {_spawnPointInfos.Count} spawn labels.");
+            Plugin.LogSource.LogDebug($"[BotOwnerZoneRenderer] Refreshed {_spawnPointInfos.Count} spawn labels.");
         }
 
-        private void AddZoneSpawnPoints(BotZone zone)
+        private void AddZoneSpawnPoints(BotOwnerZone zone)
         {
             string zoneId = zone.Id.ToString();
             Color zoneColor = GenerateZoneColor(zoneId);
@@ -72,7 +72,7 @@ namespace MOAR.Components
 
             foreach (var point in zone.SpawnPoints)
             {
-                string label = point.GetBotDebugName();
+                string label = point.GetBotOwnerDebugName();
                 _spawnPointInfos.Add(new SpawnPointInfo(point.Position, new GUIContent($"{zoneId} [{label}]"), zoneColor));
             }
         }
@@ -112,7 +112,7 @@ namespace MOAR.Components
         private void OnDestroy()
         {
             _spawnPointInfos.Clear();
-            _botZones.Clear();
+            _BotOwnerZones.Clear();
         }
 
         private GUIStyle CreateLabelStyle()
@@ -150,12 +150,12 @@ namespace MOAR.Components
 
     public static class SpawnPointExtensions
     {
-        public static string GetBotDebugName(this ISpawnPoint spawnPoint)
+        public static string GetBotOwnerDebugName(this ISpawnPoint spawnPoint)
         {
             if (spawnPoint == null)
                 return "NullPoint";
 
-            var prop = spawnPoint.GetType().GetProperty("BotTemplateId");
+            var prop = spawnPoint.GetType().GetProperty("BotOwnerTemplateId");
             return prop?.GetValue(spawnPoint) as string ?? spawnPoint.ToString();
         }
     }

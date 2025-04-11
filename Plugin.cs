@@ -1,5 +1,4 @@
 ﻿#nullable enable
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -14,6 +13,9 @@ using HarmonyLib;
 using MOAR.Components.Notifications;
 using MOAR.Helpers;
 using MOAR.Patches;
+using MOAR.AI;
+using MOAR.AI.Optimization;
+using UnityEngine;
 
 namespace MOAR
 {
@@ -23,9 +25,12 @@ namespace MOAR
     {
         public static Plugin? Instance { get; private set; }
         public static ManualLogSource LogSource = null!;
-        private static readonly Random _rng = new();
+        private static readonly System.Random _rng = new();
         private static bool _initialized;
         private static bool _patched;
+
+        private GameObject? _aiRoot;
+        private HotspotSystem? _hotspotSystem;
 
         private async void Awake()
         {
@@ -51,6 +56,8 @@ namespace MOAR
                     DebugNotification.RegisterNetworkHandler();
                 }
 
+                BotOwnerAIController.Initialize(Logger); 
+
                 Logger.LogInfo($"[MOAR] Initialization complete. Preset: {Settings.GetCurrentPresetName()}");
             }
             catch (Exception ex)
@@ -64,6 +71,7 @@ namespace MOAR
             try
             {
                 EnablePatches();
+                InitAIBehaviors();
                 Logger.LogInfo("[MOAR] Start complete.");
             }
             catch (Exception ex)
@@ -72,11 +80,26 @@ namespace MOAR
             }
         }
 
+        private void InitAIBehaviors()
+        {
+            _aiRoot = new GameObject("MOAR_HostAI");
+            DontDestroyOnLoad(_aiRoot);
+
+            _hotspotSystem = _aiRoot.AddComponent<HotspotSystem>(); 
+        }
+
         private void Update()
         {
             if (ShouldHandleInput())
             {
                 HandleInput();
+            }
+
+            BotOwnerAIController.Update(); 
+
+            if (_hotspotSystem != null)
+            {
+                // Future: Could expose reloader hotkey or debug inspector
             }
         }
 
@@ -90,11 +113,11 @@ namespace MOAR
 
         private static void HandleInput()
         {
-            if (ConfigEntryExtensions.BetterIsDown(Settings.DeleteBotSpawn!.Value))
-                AnnounceResult(Routers.DeleteBotSpawn(), "Deleted 1 bot spawn point");
+            if (ConfigEntryExtensions.BetterIsDown(Settings.DeleteBotOwnerSpawn!.Value))
+                AnnounceResult(Routers.DeleteBotOwnerSpawn(), "Deleted 1 BotOwner spawn point");
 
-            if (ConfigEntryExtensions.BetterIsDown(Settings.AddBotSpawn!.Value))
-                AnnounceResult(Routers.AddBotSpawn(), "Added 1 bot spawn point");
+            if (ConfigEntryExtensions.BetterIsDown(Settings.AddBotOwnerSpawn!.Value))
+                AnnounceResult(Routers.AddBotOwnerSpawn(), "Added 1 BotOwner spawn point");
 
             if (ConfigEntryExtensions.BetterIsDown(Settings.AddSniperSpawn!.Value))
                 AnnounceResult(Routers.AddSniperSpawn(), "Added 1 sniper spawn point");
@@ -155,7 +178,7 @@ namespace MOAR
             var suffixes = new List<string>
             {
                 ", good luck!",
-                ", may the bots ever be in your favour.",
+                ", may the BotOwners ever be in your favour.",
                 ", you're probably screwed.",
                 ", enjoy the dumpster fire.",
                 ", hope you brought snacks.",
